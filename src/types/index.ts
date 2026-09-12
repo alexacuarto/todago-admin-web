@@ -65,7 +65,7 @@ export interface DriverProfileChangeRequest {
 
 export interface FeedbackReport {
   id: string;
-  reportType: "APP_FEEDBACK" | "DRIVER_FEEDBACK" | string;
+  reportType: "APP_FEEDBACK" | "DRIVER_FEEDBACK" | "PASSENGER_FEEDBACK" | string;
   title: string;
   message: string;
   category?: string | null;
@@ -77,6 +77,8 @@ export interface FeedbackReport {
   driverId?: string | null;
   driverProfileId?: string | null;
   driverName?: string;
+  passengerId?: string | null;
+  passengerName?: string;
   bookingId?: string | null;
   route?: string;
   adminNotes?: string | null;
@@ -103,12 +105,15 @@ export interface Passenger {
   selfiePhotoUrl?: string | null;
   accountPassengerType?: string;
   discountDocumentUrl?: string | null;
+  discountDocumentBackUrl?: string | null;
   discountDocumentStatus?: "NOT_REQUIRED" | "PENDING" | "VERIFIED" | "REJECTED" | string;
   discountDocumentType?: string | null;
   discountDocumentRejectionReason?: string | null;
   discountDocumentSubmittedAt?: string | null;
   discountDocumentReviewedAt?: string | null;
   discountEligible?: boolean;
+  adminActionType?: string | null;
+  adminActionReason?: string | null;
 }
 
 export interface RideRequest {

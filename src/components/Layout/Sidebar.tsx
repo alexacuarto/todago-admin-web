@@ -79,11 +79,11 @@ export default function Sidebar({
           </button>
 
           <button onClick={() => goTo("create-driver")} className={getTabClass("create-driver")}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="5.5" cy="18.5" r="2.5" />
-              <circle cx="18.5" cy="18.5" r="2.5" />
-              <path d="M5.5 16h13M8.5 10l2-4h5v4M4 11.5a2.5 2.5 0 0 1 2.5-2.5h2" />
-              <path d="M12 10v6M18.5 16v-6h-7M3.5 13.5h2" />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="17" y1="11" x2="23" y2="11" />
             </svg>
             <span>Create Driver</span>
           </button>
@@ -104,9 +104,11 @@ export default function Sidebar({
           </button>
 
           <button onClick={() => goTo("earnings")} className={getTabClass("earnings")}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3h5.5a4.5 4.5 0 0 1 0 9H8" />
+              <line x1="8" y1="3" x2="8" y2="21" />
+              <line x1="5" y1="7" x2="19" y2="7" />
+              <line x1="5" y1="10" x2="19" y2="10" />
             </svg>
             <span>Earnings</span>
           </button>

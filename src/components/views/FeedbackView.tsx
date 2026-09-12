@@ -14,7 +14,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
   const [sortOption, setSortOption] = useState<"latest" | "oldest" | "title-az" | "title-za" | "reporter-az">("latest");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 7;
+  const PAGE_SIZE = 6;
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notesById, setNotesById] = useState<Record<string, string>>({});
 
@@ -36,6 +36,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
         (report.message || "").toLowerCase().includes(q) ||
         (report.reporterName || "").toLowerCase().includes(q) ||
         (report.driverName || "").toLowerCase().includes(q) ||
+        (report.passengerName || "").toLowerCase().includes(q) ||
         (report.category || "").toLowerCase().includes(q);
 
       return typeOk && statusOk && searchOk;
@@ -98,7 +99,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
       // Automated notifications dispatched to Passenger and/or Driver
       const notificationsToInsert: any[] = [];
 
-      // 1. Notify reporting passenger
+      // 1. Notify reporting user (passenger or driver)
       if (report.reporterProfileId) {
         notificationsToInsert.push({
           recipient_id: report.reporterProfileId,
@@ -120,7 +121,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
       }
 
       // 2. Notify driver if involved and not the reporter
-      if (report.driverProfileId && report.driverProfileId !== report.reporterProfileId) {
+      if (report.driverProfileId && report.driverProfileId !== report.reporterProfileId && report.reportType === "DRIVER_FEEDBACK") {
         notificationsToInsert.push({
           recipient_id: report.driverProfileId,
           type: "in_app",
@@ -168,7 +169,8 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
       "Message",
       "Reporter Name",
       "Reporter Role",
-      "Reference Driver",
+      "Target Driver",
+      "Target Passenger",
       "Route",
       "Status",
       "Admin Notes",
@@ -177,16 +179,21 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
     ];
 
     const rows = sortedReports.map((report) => {
-      const isDriver = report.reporterRole === "driver" || report.reportType === "DRIVER_FEEDBACK";
+      const isDriverReporter = report.reporterRole === "driver";
       return [
         report.id,
-        report.reportType,
+        report.reportType === "DRIVER_FEEDBACK"
+          ? "Driver Feedback"
+          : report.reportType === "PASSENGER_FEEDBACK"
+            ? "Passenger Feedback"
+            : "App Feedback",
         report.category || "General",
         report.title,
         report.message,
         report.reporterName || "Unknown User",
-        report.reporterRole || (isDriver ? "Driver" : "Passenger"),
+        isDriverReporter ? "Driver" : "Passenger",
         report.driverName || "",
+        report.passengerName || "",
         report.route || "",
         report.status || "PENDING",
         (notesById[report.id] ?? report.adminNotes ?? "").trim(),
@@ -236,6 +243,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
             <option value="All">All Types</option>
             <option value="APP_FEEDBACK">App Feedback</option>
             <option value="DRIVER_FEEDBACK">Driver Feedback</option>
+            <option value="PASSENGER_FEEDBACK">Passenger Feedback</option>
           </select>
 
           {/* Status Filter */}
@@ -287,15 +295,16 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
 
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-12 gap-3 px-5 py-3 bg-slate-50 text-[10px] font-extrabold uppercase text-slate-400">
-          <div className="col-span-4">Report</div>
+          <div className="col-span-4">Report Details</div>
           <div className="col-span-2">Reporter</div>
-          <div className="col-span-2">Type</div>
+          <div className="col-span-2">Feedback Target</div>
           <div className="col-span-4 text-right">Action & Notes</div>
         </div>
         {displayedReports.map((report) => {
-          const isDriver = report.reporterRole === "driver" || report.reportType === "DRIVER_FEEDBACK";
+          const isDriverReporter = report.reporterRole === "driver";
           return (
             <div key={report.id} className="grid grid-cols-12 gap-3 px-5 py-4 border-t border-slate-100 text-sm items-start">
+              {/* Col 1: Report Details */}
               <div className="col-span-12 md:col-span-4">
                 <p className="font-extrabold text-slate-800">{report.title}</p>
                 <p className="text-xs font-semibold text-slate-500 mt-1">
@@ -306,28 +315,65 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
                 </p>
               </div>
 
+              {/* Col 2: Reporter */}
               <div className="col-span-6 md:col-span-2 font-bold text-slate-700">
                 <p className="text-[#000C7D] font-extrabold">{report.reporterName || "Unknown User"}</p>
-                {report.driverName && (
-                  <p className="text-[11px] text-slate-400 font-semibold mt-1">Ref Driver: {report.driverName}</p>
-                )}
+                <div className="mt-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                      isDriverReporter
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                        : "bg-sky-50 text-sky-700 border-sky-200"
+                    }`}
+                  >
+                    {isDriverReporter ? "🚗 Driver" : "👤 Passenger"}
+                  </span>
+                </div>
               </div>
 
+              {/* Col 3: Feedback Target */}
               <div className="col-span-6 md:col-span-2">
-                <span
-                  className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold border ${
-                    isDriver
-                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                      : "bg-sky-50 text-sky-700 border-sky-200"
-                  }`}
-                >
-                  {isDriver ? "Driver" : "Passenger"}
-                </span>
+                {report.reportType === "APP_FEEDBACK" && (
+                  <div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                      📱 App
+                    </span>
+                  </div>
+                )}
+                {report.reportType === "DRIVER_FEEDBACK" && (
+                  <div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                      🚗 Driver
+                    </span>
+                    {report.driverName && (
+                      <p className="text-xs font-bold text-slate-800 mt-1">
+                        <span className="text-[10px] text-slate-400 font-semibold block">Target Driver:</span>
+                        {report.driverName}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {report.reportType === "PASSENGER_FEEDBACK" && (
+                  <div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-800 border border-teal-200">
+                      👤 Passenger
+                    </span>
+                    {report.passengerName && (
+                      <p className="text-xs font-bold text-slate-800 mt-1">
+                        <span className="text-[10px] text-slate-400 font-semibold block">Target Passenger:</span>
+                        {report.passengerName}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {report.route && (
-                  <p className="text-[10px] text-slate-400 font-medium mt-1.5 truncate">{report.route}</p>
+                  <p className="text-[10px] text-slate-500 font-medium mt-1.5 line-clamp-2" title={report.route}>
+                    📍 {report.route}
+                  </p>
                 )}
               </div>
 
+              {/* Col 4: Action & Notes */}
               <div className="col-span-12 md:col-span-4 flex flex-col gap-2">
                 <textarea
                   rows={2}

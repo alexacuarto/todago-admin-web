@@ -10,7 +10,7 @@ interface ViewUserModalProps {
   onDeactivatePassengerToggle?: (id: string) => void;
   onResetCanceledTrips: (id: string) => void;
   onLiftPassengerRestriction?: (id: string) => Promise<void> | void;
-  onRestrictPassenger?: (id: string) => Promise<void> | void;
+  onRestrictPassenger?: (id: string, reason?: string) => Promise<void> | void;
   onDeleteDriver: (driver: Driver) => void;
   onDeletePassenger: (passenger: Passenger) => void;
   onRefreshData?: () => void;
@@ -150,7 +150,7 @@ export default function ViewUserModal({
 }: ViewUserModalProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [zoomType, setZoomType] = useState<
-    "front" | "back" | "franchise" | "franchise_back" | "discount" | "selfie" | "passenger_selfie" | null
+    "front" | "back" | "franchise" | "franchise_back" | "discount" | "discount_back" | "selfie" | "passenger_selfie" | null
   >(null);
   const [loadingSignedUrl, setLoadingSignedUrl] = useState(false);
   const [discountReviewReason, setDiscountReviewReason] = useState("");
@@ -167,22 +167,30 @@ export default function ViewUserModal({
   const [activeDriverAction, setActiveDriverAction] = useState<"restrict" | "clear" | null>(null);
   const [driverActionReason, setDriverActionReason] = useState("");
   const [isExecutingDriverAction, setIsExecutingDriverAction] = useState(false);
+  const [activePassengerAction, setActivePassengerAction] = useState<"restrict" | "lift" | null>(null);
+  const [passengerActionReason, setPassengerActionReason] = useState("");
+  const [isExecutingPassengerAction, setIsExecutingPassengerAction] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
   const [changeRequestReason, setChangeRequestReason] = useState("");
   const [ridePage, setRidePage] = useState(1);
   const [passengerIdPreviewUrl, setPassengerIdPreviewUrl] = useState<string | null>(null);
+  const [passengerIdBackPreviewUrl, setPassengerIdBackPreviewUrl] = useState<string | null>(null);
   const [driverSelfiePreviewUrl, setDriverSelfiePreviewUrl] = useState<string | null>(null);
   const [passengerSelfiePreviewUrl, setPassengerSelfiePreviewUrl] = useState<string | null>(null);
   const [selectedToda, setSelectedToda] = useState("");
   const [isUpdatingToda, setIsUpdatingToda] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const passengerDocumentUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentUrl : null;
+  const passengerDocumentBackUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentBackUrl : null;
 
   useEffect(() => {
     let active = true;
     setPassengerIdPreviewUrl(null);
+    setPassengerIdBackPreviewUrl(null);
     setDriverSelfiePreviewUrl(null);
     setPassengerSelfiePreviewUrl(null);
+    setActivePassengerAction(null);
+    setPassengerActionReason("");
 
     if (viewingUser && viewingUserType === "driver") {
       const driver = viewingUser as Driver;
@@ -220,12 +228,19 @@ export default function ViewUserModal({
       } else {
         setPassengerIdPreviewUrl(null);
       }
+      if (p.discountDocumentBackUrl) {
+        resolveStorageUrl(p.discountDocumentBackUrl, "discount-ids").then((url) => {
+          if (active) setPassengerIdBackPreviewUrl(url);
+        });
+      } else {
+        setPassengerIdBackPreviewUrl(null);
+      }
     }
     setDiscountReviewReason("");
     setRidePage(1);
     return () => { active = false; };
     // Preserve unsaved form inputs when background synchronization replaces the row object.
-  }, [viewingUser?.id, viewingUserType, isOpen, passengerDocumentUrl]);
+  }, [viewingUser?.id, viewingUserType, isOpen, passengerDocumentUrl, passengerDocumentBackUrl]);
 
   const passengerRideHistory = useMemo(() => {
     if (!viewingUser || viewingUserType !== "passenger") return [];
@@ -303,7 +318,7 @@ export default function ViewUserModal({
   if (!isOpen || !viewingUser) return null;
 
   const handleZoomClick = async (
-    type: "front" | "back" | "franchise" | "franchise_back" | "discount" | "selfie" | "passenger_selfie"
+    type: "front" | "back" | "franchise" | "franchise_back" | "discount" | "discount_back" | "selfie" | "passenger_selfie"
   ) => {
     const url =
       type === "front" ? driver?.licenseFrontUrl || driver?.licensePhotoUrl || "" :
@@ -312,6 +327,7 @@ export default function ViewUserModal({
       type === "franchise_back" ? driver?.franchiseBackUrl || "" :
       type === "selfie" ? driver?.selfiePhotoUrl || driver?.avatarUrl || "" :
       type === "passenger_selfie" ? passenger?.selfiePhotoUrl || passenger?.avatarUrl || "" :
+      type === "discount_back" ? passenger?.discountDocumentBackUrl || "" :
       passenger?.discountDocumentUrl || "";
 
     if (!url) return;
@@ -322,7 +338,7 @@ export default function ViewUserModal({
       const defaultBucket =
         (type === "selfie" || type === "passenger_selfie")
           ? "avatars"
-          : type === "discount"
+          : (type === "discount" || type === "discount_back")
           ? "discount-ids"
           : type === "front" || type === "back"
           ? "licenses"
@@ -536,6 +552,40 @@ export default function ViewUserModal({
       alert(err.message || "Failed to update driver.");
     } finally {
       setIsExecutingDriverAction(false);
+    }
+  };
+
+  const handlePassengerAction = async () => {
+    if (!passenger || !activePassengerAction) return;
+    if (activePassengerAction === "restrict" && !passengerActionReason.trim()) {
+      alert("Please enter a restriction reason.");
+      return;
+    }
+
+    setIsExecutingPassengerAction(true);
+    try {
+      if (activePassengerAction === "restrict") {
+        if (onRestrictPassenger) {
+          await onRestrictPassenger(passenger.id, passengerActionReason.trim());
+        }
+      } else {
+        if (onLiftPassengerRestriction) {
+          await onLiftPassengerRestriction(passenger.id);
+        } else {
+          onResetCanceledTrips(passenger.id);
+        }
+      }
+
+      alert(activePassengerAction === "lift" ? "Passenger restriction lifted." : "Passenger restricted successfully.");
+      setActivePassengerAction(null);
+      setPassengerActionReason("");
+      onRefreshData?.();
+      onClose();
+    } catch (err: any) {
+      console.error("Passenger action failed:", err);
+      alert(err.message || "Failed to update passenger.");
+    } finally {
+      setIsExecutingPassengerAction(false);
     }
   };
 
@@ -966,10 +1016,10 @@ export default function ViewUserModal({
                       <div>
                         <p className="text-xs font-bold text-rose-800 uppercase tracking-wide flex items-center gap-1.5">
                           <span className="inline-block w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-                          Account Restricted (3-Cancellation Policy)
+                          Account Restricted
                         </p>
                         <p className="text-xs text-rose-600 font-medium mt-1">
-                          Booking is restricted for 31 days due to 3 cancellations. Restriction will expire on{" "}
+                          Booking is restricted until{" "}
                           <span className="font-bold">
                             {new Date(passenger.bookingRestrictionUntil!).toLocaleDateString(undefined, {
                               month: "long",
@@ -978,6 +1028,11 @@ export default function ViewUserModal({
                             })}
                           </span>{" "}
                           ({restrictionDaysRemaining} days left).
+                          {passenger.adminActionReason && (
+                            <span className="block mt-1 font-semibold text-rose-700">
+                              Reason: {passenger.adminActionReason}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <button
@@ -1014,40 +1069,83 @@ export default function ViewUserModal({
                     </p>
                   </div>
 
-                  <div
-                    onClick={() => passenger.discountDocumentUrl && handleZoomClick("discount")}
-                    className={`relative w-full max-w-xs h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
-                      passenger.discountDocumentUrl ? "cursor-pointer group shadow-xs" : ""
-                    }`}
-                  >
-                    {passengerIdPreviewUrl ? (
-                      <>
-                        <img
-                          src={passengerIdPreviewUrl}
-                          alt="Uploaded ID Preview"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                          Click to enlarge
-                        </div>
-                      </>
-                    ) : passenger.discountDocumentUrl ? (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                        <span className="text-xs font-semibold">Loading ID preview...</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Front Image Preview */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 uppercase">Front Page of ID</span>
+                      <div
+                        onClick={() => passenger.discountDocumentUrl && handleZoomClick("discount")}
+                        className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
+                          passenger.discountDocumentUrl ? "cursor-pointer group shadow-xs" : ""
+                        }`}
+                      >
+                        {passengerIdPreviewUrl ? (
+                          <>
+                            <img
+                              src={passengerIdPreviewUrl}
+                              alt="Front ID Preview"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                              Click to enlarge
+                            </div>
+                          </>
+                        ) : passenger.discountDocumentUrl ? (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                            <span className="text-xs font-semibold">Loading front preview...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
+                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                              <circle cx="9" cy="9" r="2"/>
+                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                            </svg>
+                            <span className="text-xs font-semibold">No front ID uploaded</span>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
-                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                          <circle cx="9" cy="9" r="2"/>
-                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                        </svg>
-                        <span className="text-xs font-semibold">No verification ID uploaded</span>
+                    </div>
+
+                    {/* Back Image Preview */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 uppercase">Back Page of ID</span>
+                      <div
+                        onClick={() => passenger.discountDocumentBackUrl && handleZoomClick("discount_back")}
+                        className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
+                          passenger.discountDocumentBackUrl ? "cursor-pointer group shadow-xs" : ""
+                        }`}
+                      >
+                        {passengerIdBackPreviewUrl ? (
+                          <>
+                            <img
+                              src={passengerIdBackPreviewUrl}
+                              alt="Back ID Preview"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                              Click to enlarge
+                            </div>
+                          </>
+                        ) : passenger.discountDocumentBackUrl ? (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                            <span className="text-xs font-semibold">Loading back preview...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
+                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                              <circle cx="9" cy="9" r="2"/>
+                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                            </svg>
+                            <span className="text-xs font-semibold">No back ID uploaded</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
 
-                  {passenger.discountDocumentStatus === "PENDING" && passenger.discountDocumentUrl && (
+                  {passenger.discountDocumentStatus === "PENDING" && (passenger.discountDocumentUrl || passenger.discountDocumentBackUrl) && (
                     <div className="flex flex-col gap-3 mt-1">
                       <textarea
                         value={discountReviewReason}
@@ -1163,52 +1261,77 @@ export default function ViewUserModal({
                 )}
               </div>
 
-              <div className="flex gap-2 items-center flex-wrap">
-                {isPassengerRestricted && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onLiftPassengerRestriction
-                        ? onLiftPassengerRestriction(passenger.id)
-                        : onResetCanceledTrips(passenger.id)
-                    }
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                  >
-                    Lift Restriction Immediately
-                  </button>
-                )}
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2 items-center flex-wrap">
+                  {isPassengerRestricted ? (
+                    <button
+                      type="button"
+                      onClick={() => setActivePassengerAction("lift")}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                    >
+                      Lift Restriction
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActivePassengerAction("restrict")}
+                      className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 cursor-pointer"
+                    >
+                      Restrict Passenger
+                    </button>
+                  )}
 
-                {!isPassengerRestricted && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(`Restrict ${passenger.name} from booking for 31 days?`)) {
-                        if (onRestrictPassenger) {
-                          onRestrictPassenger(passenger.id);
-                        }
+                    disabled={isDeletingUser}
+                    onClick={async () => {
+                      setIsDeletingUser(true);
+                      try {
+                        await onDeletePassenger(passenger);
+                      } finally {
+                        setIsDeletingUser(false);
                       }
                     }}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Restrict Passenger (31 Days)
+                    {isDeletingUser ? "Deleting Passenger..." : "Delete Passenger"}
                   </button>
-                )}
+                </div>
 
-                <button
-                  type="button"
-                  disabled={isDeletingUser}
-                  onClick={async () => {
-                    setIsDeletingUser(true);
-                    try {
-                      await onDeletePassenger(passenger);
-                    } finally {
-                      setIsDeletingUser(false);
-                    }
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isDeletingUser ? "Deleting Passenger..." : "Delete Passenger"}
-                </button>
+                {activePassengerAction && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
+                    {activePassengerAction === "restrict" ? (
+                      <textarea
+                        rows={2}
+                        placeholder="Reason for restriction (e.g. repeated booking cancellations, abusive behavior, policy violation)"
+                        value={passengerActionReason}
+                        onChange={(event) => setPassengerActionReason(event.target.value)}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-[#000C7D] outline-hidden focus:border-blue-400 resize-none"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-600 font-semibold">
+                        Confirm lifting this passenger's booking restriction. The passenger will be able to book rides again immediately.
+                      </p>
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActivePassengerAction(null)}
+                        className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePassengerAction}
+                        disabled={isExecutingPassengerAction}
+                        className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
+                      >
+                        {isExecutingPassengerAction ? "Processing..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           );
@@ -1256,7 +1379,9 @@ export default function ViewUserModal({
                 : zoomType === "franchise_back"
                 ? "Franchise Back Copy"
                 : zoomType === "discount"
-                ? "Passenger Verification ID"
+                ? "Passenger Verification ID (Front)"
+                : zoomType === "discount_back"
+                ? "Passenger Verification ID (Back)"
                 : zoomType === "selfie"
                 ? "Driver Verification Selfie"
                 : zoomType === "passenger_selfie"

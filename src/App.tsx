@@ -168,7 +168,7 @@ export default function App() {
       console.log("[Supabase Response] Profiles fetched:", profiles.length);
 
       console.log("[Supabase Query] Fetching passengers map...");
-      const passengersData = await fetchAllRows("passengers", `
+      const passengersColumns = `
           id,
           profile_id,
           cancel_count,
@@ -178,13 +178,28 @@ export default function App() {
           account_passenger_type,
           selfie_photo_url,
           discount_document_url,
+          discount_document_back_url,
           discount_document_status,
           discount_document_type,
           discount_document_rejection_reason,
           discount_document_submitted_at,
           discount_document_reviewed_at,
-          discount_eligible
-        `);
+          discount_eligible,
+          admin_action_type,
+          admin_action_reason
+        `;
+      let passengersData: any[] = [];
+      try {
+        passengersData = await fetchAllRows("passengers", passengersColumns);
+      } catch (err: any) {
+        if (err?.message?.includes("admin_action") || String(err).includes("admin_action")) {
+          console.warn("[Supabase Warning] admin_action fields not found on passengers table; falling back without them.");
+          const passengersColumnsFallback = passengersColumns.replace(/admin_action_type,?\s*/g, "").replace(/admin_action_reason,?\s*/g, "");
+          passengersData = await fetchAllRows("passengers", passengersColumnsFallback);
+        } else {
+          throw err;
+        }
+      }
       console.log("[Supabase Response] Passengers fetched:", passengersData?.length);
 
       console.log("[Supabase Query] Fetching vehicles...");
@@ -368,12 +383,15 @@ export default function App() {
           selfiePhotoUrl: pd?.selfie_photo_url || p?.avatar_url || pd?.discount_document_url || null,
           accountPassengerType: pd?.account_passenger_type || "Regular",
           discountDocumentUrl: pd?.discount_document_url || null,
+          discountDocumentBackUrl: pd?.discount_document_back_url || null,
           discountDocumentStatus: pd?.discount_document_status || "NOT_REQUIRED",
           discountDocumentType: pd?.discount_document_type || null,
           discountDocumentRejectionReason: pd?.discount_document_rejection_reason || null,
           discountDocumentSubmittedAt: pd?.discount_document_submitted_at || null,
           discountDocumentReviewedAt: pd?.discount_document_reviewed_at || null,
-          discountEligible: pd?.discount_eligible || false
+          discountEligible: pd?.discount_eligible || false,
+          adminActionType: pd?.admin_action_type || null,
+          adminActionReason: pd?.admin_action_reason || null
         };
       }).filter(passenger => passenger.name !== "Incomplete Profile" && passenger.name !== "Unnamed Passenger");
 
@@ -622,12 +640,27 @@ export default function App() {
       const mappedReports: FeedbackReport[] = (reportRows || []).map((row: any) => {
         const reporterProfile = (profiles || []).find((p: any) => p.id === row.reporter_profile_id) || {};
         const reporterName = `${reporterProfile.first_name || ""} ${reporterProfile.last_name || ""}`.trim() || reporterProfile.email || "Unknown User";
-        const reporterRole = reporterProfile.role || (row.reporter_passenger_id ? "passenger" : "user");
+        const isDriverReporter = reporterProfile.role === "driver" || (!row.reporter_passenger_id && driversData.some((d: any) => d.profile_id === row.reporter_profile_id));
+        const reporterRole = isDriverReporter ? "driver" : (reporterProfile.role || (row.reporter_passenger_id ? "passenger" : "user"));
+
+        // Driver referenced in report
         const driverRow = row.driver_id ? driversData.find((d: any) => d.id === row.driver_id) : null;
         const driverProfile = driverRow ? (profiles || []).find((p: any) => p.id === driverRow.profile_id) || {} : {};
         const driverName = driverRow ? `${driverProfile.first_name || ""} ${driverProfile.last_name || ""}`.trim() || "Unnamed Driver" : undefined;
         const driverProfileId = driverRow ? driverRow.profile_id : null;
+
+        // Passenger referenced in report (for PASSENGER_FEEDBACK from driver)
+        const targetPassengerId = row.passenger_id || row.data?.passenger_id || null;
+        const passengerRow = targetPassengerId ? mappedPassengers.find((p: any) => p.id === targetPassengerId) : null;
+        const passengerName = row.data?.passenger_name || (passengerRow ? passengerRow.name : undefined);
+
         const booking = row.booking_id ? bookings.find((b: any) => b.id === row.booking_id) : null;
+        const route = booking
+          ? `${booking.pickup_address || "Pickup"} -> ${booking.dropoff_address || "Dropoff"}`
+          : (row.data?.pickup_address && row.data?.dropoff_address)
+            ? `${row.data.pickup_address} -> ${row.data.dropoff_address}`
+            : undefined;
+
         return {
           id: row.id,
           reportType: row.report_type || "APP_FEEDBACK",
@@ -642,8 +675,10 @@ export default function App() {
           driverId: row.driver_id || null,
           driverProfileId,
           driverName,
+          passengerId: targetPassengerId,
+          passengerName,
           bookingId: row.booking_id || null,
-          route: booking ? `${booking.pickup_address || "Pickup"} -> ${booking.dropoff_address || "Dropoff"}` : undefined,
+          route,
           adminNotes: row.admin_notes || null,
           createdAt: row.created_at,
           updatedAt: row.updated_at || null,
@@ -1020,15 +1055,33 @@ export default function App() {
       }
 
       // 3. Direct table update guarantee
-      const { error: updateError } = await supabase
+      const liftPayload: any = {
+        booking_restriction_until: null,
+        cancel_count: 0,
+        warning_status: false,
+        admin_action_type: null,
+        admin_action_reason: null,
+        admin_action_date: null,
+        updated_at: new Date().toISOString()
+      };
+      let { error: updateError } = await supabase
         .from('passengers')
-        .update({
-          booking_restriction_until: null,
-          cancel_count: 0,
-          warning_status: false,
-          updated_at: new Date().toISOString()
-        })
+        .update(liftPayload)
         .eq('id', passengerId);
+
+      if (updateError && (updateError.message?.includes('admin_action') || updateError.message?.includes('schema cache'))) {
+        console.warn("Direct update on passengers without admin_action columns due to schema cache.");
+        const { error: fallbackError } = await supabase
+          .from('passengers')
+          .update({
+            booking_restriction_until: null,
+            cancel_count: 0,
+            warning_status: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', passengerId);
+        updateError = fallbackError;
+      }
 
       if (updateError) {
         console.warn("Direct update on passengers table had error:", updateError);
@@ -1068,6 +1121,8 @@ export default function App() {
         setViewingUser(prev => prev ? {
           ...prev,
           bookingRestrictionUntil: null,
+          adminActionReason: null,
+          adminActionType: null,
           canceledTrips: 0,
           passengerCancelledTrips: 0,
           warningStatus: false,
@@ -1083,8 +1138,9 @@ export default function App() {
     }
   };
 
-  const handleRestrictPassenger = async (id: string, days = 31) => {
-    console.log(`[Supabase Query] Restricting passenger ID ${id} for ${days} days...`);
+  const handleRestrictPassenger = async (id: string, reason?: string, days = 31) => {
+    const formattedReason = reason?.trim() || "Administrative restriction";
+    console.log(`[Supabase Query] Restricting passenger ID ${id} for ${days} days with reason: ${formattedReason}...`);
     try {
       const restrictionDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
@@ -1113,14 +1169,30 @@ export default function App() {
         console.warn("RPC admin_restrict_passenger error or fallback needed:", rpcError);
       }
 
-      // 3. Direct table update guarantee
-      const { error: updateError } = await supabase
+      // 3. Direct table update guarantee with safe fallback
+      const restrictPayload: any = {
+        booking_restriction_until: restrictionDate.toISOString(),
+        admin_action_type: 'restricted',
+        admin_action_reason: formattedReason,
+        admin_action_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      let { error: updateError } = await supabase
         .from('passengers')
-        .update({
-          booking_restriction_until: restrictionDate.toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .update(restrictPayload)
         .eq('id', passengerId);
+
+      if (updateError && (updateError.message?.includes('admin_action') || updateError.message?.includes('schema cache'))) {
+        console.warn("Direct update on passengers without admin_action columns due to schema cache.");
+        const { error: fallbackError } = await supabase
+          .from('passengers')
+          .update({
+            booking_restriction_until: restrictionDate.toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', passengerId);
+        updateError = fallbackError;
+      }
 
       if (updateError && rpcError) throw updateError;
 
@@ -1133,10 +1205,11 @@ export default function App() {
           recipient_id: profileId,
           type: "in_app",
           title: "Account Restricted",
-          body: `The administrator restricted your account from booking for ${days} days, until ${formattedDate}.`,
+          body: `Your account has been restricted from booking by the administrator.\n\nReason: ${formattedReason}\n\nRestriction until: ${formattedDate}`,
           notification_category: "account_status",
           data: {
             action: "passenger_restricted",
+            reason: formattedReason,
             restriction_until: restrictionDate.toISOString(),
             days,
           },
@@ -1150,6 +1223,8 @@ export default function App() {
         setViewingUser(prev => prev ? {
           ...prev,
           bookingRestrictionUntil: restrictionDate.toISOString(),
+          adminActionReason: formattedReason,
+          adminActionType: 'restricted',
           status: `Restricted until ${formattedDate}`
         } as Passenger : null);
       }

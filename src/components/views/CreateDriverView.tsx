@@ -47,11 +47,10 @@ export default function CreateDriverView({
                   placeholder="Enter Full Name"
                   value={formData.name}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
-                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${
-                    formData.name
+                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.name
                       ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
                       : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
-                  }`}
+                    }`}
                   autoComplete="off"
                 />
               </div>
@@ -73,11 +72,10 @@ export default function CreateDriverView({
                   placeholder="Enter Email Address"
                   value={formData.email}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, email: e.target.value }))}
-                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${
-                    formData.email
+                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.email
                       ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
                       : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
-                  }`}
+                    }`}
                   autoComplete="off"
                 />
               </div>
@@ -98,11 +96,10 @@ export default function CreateDriverView({
                   placeholder="Enter Contact Number"
                   value={formData.phone}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, phone: e.target.value }))}
-                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${
-                    formData.phone
+                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.phone
                       ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
                       : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
-                  }`}
+                    }`}
                   autoComplete="off"
                 />
               </div>
@@ -110,7 +107,7 @@ export default function CreateDriverView({
 
             {/* Password with Toggle */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Temporary Password <span className="text-rose-500">*</span></label>
+              <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Password <span className="text-rose-500">*</span></label>
               <div className="relative">
                 <span className={`absolute inset-y-0 left-0 pl-3.5 flex items-center transition-colors ${formData.password ? "text-white" : "text-slate-400"}`}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -124,11 +121,10 @@ export default function CreateDriverView({
                   placeholder="Enter Password"
                   value={formData.password}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, password: e.target.value }))}
-                  className={`w-full pl-11 pr-12 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${
-                    formData.password
+                  className={`w-full pl-11 pr-12 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.password
                       ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
                       : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
-                  }`}
+                    }`}
                   autoComplete="new-password"
                 />
                 <button
@@ -159,11 +155,12 @@ export default function CreateDriverView({
               <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Plate Number <span className="text-rose-500">*</span></label>
               <div className="relative">
                 <span className={`absolute inset-y-0 left-0 pl-3.5 flex items-center transition-colors ${formData.plateNumber ? "text-white" : "text-slate-400"}`}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-                    <circle cx="7" cy="17" r="2" />
-                    <path d="M9 17h6" />
-                    <circle cx="17" cy="17" r="2" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="6" width="20" height="12" rx="2.5" />
+                    <line x1="6" y1="12" x2="11" y2="12" />
+                    <line x1="13" y1="12" x2="18" y2="12" />
+                    <circle cx="5" cy="8.5" r="0.75" fill="currentColor" />
+                    <circle cx="19" cy="8.5" r="0.75" fill="currentColor" />
                   </svg>
                 </span>
                 <input
@@ -172,11 +169,10 @@ export default function CreateDriverView({
                   placeholder="Enter Plate Number (e.g. ABC-1234)"
                   value={formData.plateNumber}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, plateNumber: e.target.value }))}
-                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${
-                    formData.plateNumber
+                  className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.plateNumber
                       ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
                       : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
-                  }`}
+                    }`}
                   autoComplete="off"
                 />
               </div>
