@@ -65,8 +65,11 @@ export default function Sidebar({
           shadow-lg md:shadow-none
         `}
       >
-        <div className="p-4 flex justify-center bg-transparent">
+        <div className="p-4 flex flex-col items-center justify-center bg-transparent gap-1.5">
           <img src="/branding/toda_go_logo_dark.png" alt="TodaGo" className="w-[140px] h-auto object-contain" />
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-amber-950 shadow-xs border border-amber-500/30">
+            Test Environment
+          </span>
         </div>
 
         <nav className="flex-1 py-4 flex flex-col gap-1 overflow-hidden">

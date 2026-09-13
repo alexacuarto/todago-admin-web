@@ -193,28 +193,16 @@ export default function RideRequestsView({
                   <td className="py-5 pl-3 text-[#000C7D] font-bold">{request.passenger}</td>
                   <td className="py-5 px-3 text-slate-700">{request.driver}</td>
                   <td className="py-5 px-3 text-slate-600 min-w-[280px]">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className="font-bold text-slate-800">{request.location}</p>
-                      {(request.tripType?.toLowerCase().includes("special") || (request.stops && request.stops.length > 0) || (request.totalStops != null && request.totalStops > 1)) && (
-                        <span className="px-2 py-0.5 bg-sky-100 text-sky-800 rounded-md text-[10px] font-extrabold whitespace-nowrap">
-                          Special ({request.totalStops || request.stops?.length || 1} stops)
-                        </span>
-                      )}
-                    </div>
+                    <p className="font-bold text-slate-800 mb-0.5">{request.location}</p>
                     {request.stops && request.stops.length > 0 ? (
                       <p
                         className="text-xs text-slate-500 font-medium line-clamp-2"
                         title={request.stops.map((s, i) => `Stop ${s.stop_number || i + 1}: ${s.address}`).join("\n")}
                       >
-                        <span className="text-slate-400 font-normal">Via {request.stops.length} stops: </span>
                         {request.stops.map((s) => s.address.split(",")[0].trim()).join(" → ")}
                       </p>
                     ) : (
-                      <p className="text-xs text-slate-400">
-                        {request.totalStops && request.totalStops > 1
-                          ? `Special Trip (${request.totalStops} stops) → ${request.destination}`
-                          : request.destination}
-                      </p>
+                      <p className="text-xs text-slate-400">{request.destination}</p>
                     )}
                   </td>
                   <td className="py-5 px-3 text-[#000C7D] font-extrabold">₱{request.fare.toLocaleString()}</td>
