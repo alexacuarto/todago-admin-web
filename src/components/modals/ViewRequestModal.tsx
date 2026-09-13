@@ -68,15 +68,6 @@ export default function ViewRequestModal({
 
             {isSpecialTrip && viewingRequest.stops && viewingRequest.stops.length > 0 && (
               <div className="col-span-2 bg-sky-50/60 rounded-2xl p-4 border border-sky-100">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-[#000C7D] font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#000C7D]"></span>
-                    Recorded Stops ({viewingRequest.stops.length} of {viewingRequest.totalStops || viewingRequest.stops.length})
-                  </p>
-                  <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-md">
-                    Multi-Stop Route
-                  </span>
-                </div>
                 <div className="flex flex-col gap-2.5">
                   {viewingRequest.stops.map((stop, idx) => {
                     const isPassed = viewingRequest.currentStopIndex != null && viewingRequest.currentStopIndex > idx;
@@ -141,23 +132,6 @@ export default function ViewRequestModal({
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {isSpecialTrip && (!viewingRequest.stops || viewingRequest.stops.length === 0) && (
-              <div className="col-span-2 bg-sky-50/60 rounded-2xl p-4 border border-sky-100">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs text-[#000C7D] font-extrabold uppercase tracking-wider">
-                    Special Trip Route ({viewingRequest.totalStops || 1} Stops)
-                  </p>
-                  <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-md">
-                    Multi-Stop
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600">
-                  <span className="text-slate-400 font-semibold">Final Destination: </span>
-                  <span className="font-bold text-slate-800">{viewingRequest.destination || "N/A"}</span>
-                </p>
               </div>
             )}
 
