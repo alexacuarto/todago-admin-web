@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
-  'https://psbubwtegbipjqjqezzc.supabase.co'; // <-- Replace with your Test Supabase URL or set in .env
+  'https://psbubwtegbipjqjqezzc.supabase.co'; // <-- Replace with Test Supabase URL or set in .env
 
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
