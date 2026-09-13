@@ -29,7 +29,6 @@ export default function Sidebar({
   pendingDriversCount = 0,
   pendingPassengersCount = 0,
   pendingChangeRequestsCount = 0,
-  adminsCount = 0,
 }: SidebarProps) {
   const getTabClass = (tab: AdminNavTab) => {
     const isActive = activeTab === tab;
