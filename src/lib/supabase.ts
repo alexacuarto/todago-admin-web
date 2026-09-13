@@ -8,11 +8,11 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
-  'https://nbpzwbsptfcfyxjcpqgo.supabase.co'; // <-- Replace with your Test Supabase URL or set in .env
+  'https://psbubwtegbipjqjqezzc.supabase.co'; // <-- Replace with your Test Supabase URL or set in .env
 
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5icHp3YnNwdGZjZnl4amNwcWdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NjUwMzgsImV4cCI6MjEwMTI0MTAzOH0.k588iXV5M9qqLe_-01TiHuQBn-qlQJYhG9n3_pWgL_k'; // <-- Replace with your Test Anon Key or set in .env
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzYnVid3RlZ2JpcGpxanFlenpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMDEyNTcsImV4cCI6MjEwNDg3NzI1N30.fveQqpO1ju3OSYuQExEwhQ10lb-LmqTbusQtY80_8z0'; // <-- Replace with your Test Anon Key or set in .env
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {
