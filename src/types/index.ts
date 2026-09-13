@@ -95,6 +95,8 @@ export interface Passenger {
   canceledTrips: number;
   status: string;
   joinedDate: string;
+  createdAt?: string | null;
+  created_at?: string | null;
   ridesTaken: number;
   passengerCancelledTrips?: number;
   driverCancelledTrips?: number;

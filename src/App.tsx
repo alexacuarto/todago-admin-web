@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { fetchAllRows } from "./lib/databaseRows";
 import { createDriverAccount } from "./lib/driverService";
+import { createAdminAccount, deleteAdminAccount, updateAdminAccount } from "./lib/adminAccountService";
 import { getDriverActivityStatus } from "./lib/driverActivity";
 import { supabase } from "./lib/supabase";
-import { BookingStop, Driver, DriverProfileChangeRequest, FeedbackReport, Passenger, RideRequest } from "./types";
+import { AdminAccount, BookingStop, Driver, DriverProfileChangeRequest, FeedbackReport, Passenger, RideRequest } from "./types";
 
 // Layout components
 import Header from "./components/Layout/Header";
@@ -133,7 +134,18 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [earningsTodaFilter, setEarningsTodaFilter] = useState("All");
   const [userTodaFilter, setUserTodaFilter] = useState("All");
-  const [usersSubTab, setUsersSubTab] = useState<"drivers" | "passengers" | "requests">("drivers");
+  const [usersSubTab, setUsersSubTab] = useState<"drivers" | "passengers" | "requests" | "admins">("drivers");
+
+  // Administrator accounts state
+  const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>([]);
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+  const [activeAdminActionId, setActiveAdminActionId] = useState("");
+  const [newAdminForm, setNewAdminForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
 
   // Load live data from Supabase
@@ -161,6 +173,7 @@ export default function App() {
         setDrivers([]);
         setPassengers([]);
         setRideRequests([]);
+        setAdminAccounts([]);
         setIsLoggedIn(false);
         setLoginError('Administrator access is no longer active.');
         return;
@@ -171,6 +184,7 @@ export default function App() {
       const passengersColumns = `
           id,
           profile_id,
+          created_at,
           cancel_count,
           last_cancel_date,
           booking_restriction_until,
@@ -331,10 +345,11 @@ export default function App() {
         const driverCancelledTrips = cancelledBookings.filter(b => b.cancelled_by === "driver").length;
         const lastCancelDate = pd ? (pd.last_cancel_date || null) : null;
 
+        const rawCreatedAt = pd?.created_at || p?.created_at || null;
         let resolvedName = "Incomplete Profile";
         let resolvedContact = "No Contact";
         let resolvedStatus = "Inactive";
-        let resolvedJoinedDate = new Date().toISOString().split("T")[0];
+        let resolvedJoinedDate = rawCreatedAt ? rawCreatedAt.split("T")[0] : "N/A";
         let warningStatus = false;
         let bookingRestrictionUntil = null;
 
@@ -342,6 +357,12 @@ export default function App() {
           const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim();
           if (fullName) {
             resolvedName = fullName;
+          } else if (p.full_name && p.full_name.trim()) {
+            resolvedName = p.full_name.trim();
+          } else if (p.email) {
+            resolvedName = p.email.split("@")[0];
+          } else if (p.phone_number) {
+            resolvedName = `Passenger (${p.phone_number})`;
           }
           resolvedContact = p.phone_number || p.email || "No Contact";
           
@@ -361,7 +382,6 @@ export default function App() {
           } else {
             resolvedStatus = "Active";
           }
-          resolvedJoinedDate = p.created_at ? p.created_at.split("T")[0] : resolvedJoinedDate;
         }
 
         return {
@@ -375,6 +395,8 @@ export default function App() {
           driverCancelledTrips,
           status: resolvedStatus,
           joinedDate: resolvedJoinedDate,
+          createdAt: rawCreatedAt,
+          created_at: rawCreatedAt,
           ridesTaken,
           warningStatus,
           bookingRestrictionUntil,
@@ -686,11 +708,47 @@ export default function App() {
       });
 
       if (sessionUserId.current !== requestedUserId) return;
+
+      const getSafeTimestamp = (item: { createdAt?: string | null; created_at?: string | null; joinedDate?: string | null }) => {
+        const raw = item.createdAt || item.created_at || item.joinedDate;
+        if (!raw) return 0;
+        const time = new Date(raw).getTime();
+        return Number.isFinite(time) ? time : 0;
+      };
+
+      mappedDrivers.sort((a, b) => {
+        const diff = getSafeTimestamp(b) - getSafeTimestamp(a);
+        if (diff !== 0) return diff;
+        return (b.id || "").localeCompare(a.id || "");
+      });
+
+      mappedPassengers.sort((a, b) => {
+        const diff = getSafeTimestamp(b) - getSafeTimestamp(a);
+        if (diff !== 0) return diff;
+        return (b.id || "").localeCompare(a.id || "");
+      });
+
       setPassengers(mappedPassengers);
       setDrivers(mappedDrivers);
       setRideRequests(mappedRequests);
       setDriverChangeRequests(mappedChangeRequests);
       setFeedbackReports(mappedReports);
+
+      // Map Admin Accounts
+      const adminProfiles = (profiles || []).filter((p: any) => p.role === 'admin');
+      adminProfiles.sort((a: any, b: any) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+      const firstAdminId = adminProfiles[0]?.id;
+      const mappedAdminAccounts: AdminAccount[] = adminProfiles.map((row: any, index: number) => ({
+        id: row.id,
+        name: row.full_name?.trim() || [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || row.email?.split("@")[0] || "Admin",
+        email: row.email || "",
+        phone: row.phone_number || "",
+        status: "Active" as const,
+        isPrimaryAdmin: row.id === firstAdminId || index === 0,
+        createdAt: row.created_at ? new Date(row.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-",
+      }));
+      setAdminAccounts(mappedAdminAccounts);
+
       setViewingRequest(current => current ? mappedRequests.find(row => row.id === current.id) ?? null : null);
       setViewingUser(current => current ? [...mappedDrivers, ...mappedPassengers].find(row => row.id === current.id) ?? null : null);
       setLastRefreshedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -717,6 +775,7 @@ export default function App() {
       setRideRequests([]);
       setFeedbackReports([]);
       setDriverChangeRequests([]);
+      setAdminAccounts([]);
       setViewingUser(null);
       setViewingRequest(null);
       console.log("SESSION USER: null");
@@ -1509,6 +1568,106 @@ export default function App() {
     fetchData();
   };
 
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminForm.name.trim() || !newAdminForm.email.trim() || !newAdminForm.password.trim()) {
+      alert("Please fill in all required fields (Name, Email, Password).");
+      return;
+    }
+    if (newAdminForm.password.trim().length < 8) {
+      alert("Password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsCreatingAdmin(true);
+    try {
+      const res = await createAdminAccount({
+        fullName: newAdminForm.name,
+        email: newAdminForm.email,
+        phone: newAdminForm.phone,
+        password: newAdminForm.password,
+      });
+
+      if (!res.success) {
+        alert(`Failed to create administrator account: ${res.error || "Unknown error"}`);
+        return;
+      }
+
+      alert(`Administrator account for ${res.adminName || newAdminForm.name} created successfully!`);
+      setNewAdminForm({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+      });
+      fetchData(false);
+    } catch (err: any) {
+      console.error("Error creating admin account:", err);
+      alert(`Error creating administrator: ${err?.message || err}`);
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  };
+
+  const handleUpdateAdmin = async (
+    account: AdminAccount,
+    updates: { name: string; email: string; phone: string; password?: string }
+  ): Promise<boolean> => {
+    setActiveAdminActionId(account.id);
+    try {
+      const res = await updateAdminAccount(account.id, {
+        fullName: updates.name,
+        email: updates.email,
+        phone: updates.phone,
+        password: updates.password,
+      });
+      if (!res.success) {
+        alert(`Failed to update administrator: ${res.error || "Unknown error"}`);
+        return false;
+      }
+      alert("Administrator account updated successfully.");
+      await fetchData(false);
+      return true;
+    } catch (err: any) {
+      console.error("Error updating admin account:", err);
+      alert(`Error updating administrator: ${err?.message || err}`);
+      return false;
+    } finally {
+      setActiveAdminActionId("");
+    }
+  };
+
+  const handleDeleteAdmin = async (account: AdminAccount): Promise<boolean> => {
+    if (account.isPrimaryAdmin) {
+      alert("Primary administrator accounts cannot be deleted.");
+      return false;
+    }
+
+    if (sessionUserId.current === account.id) {
+      alert("You cannot delete your own logged-in administrator account.");
+      return false;
+    }
+
+    setActiveAdminActionId(account.id);
+    try {
+      const res = await deleteAdminAccount(account.id);
+      if (!res.success) {
+        alert(`Failed to delete administrator account: ${res.error || "Unknown error"}`);
+        return false;
+      }
+      setAdminAccounts(prev => prev.filter(a => a.id !== account.id));
+      alert(`Administrator account "${account.name}" deleted successfully.`);
+      await fetchData(false);
+      return true;
+    } catch (err: any) {
+      console.error("Error deleting admin account:", err);
+      alert(`Error deleting administrator: ${err?.message || err}`);
+      return false;
+    } finally {
+      setActiveAdminActionId("");
+    }
+  };
+
   // Filters
   const filteredDrivers = useMemo(() => {
     return drivers.filter(d => {
@@ -1631,6 +1790,7 @@ export default function App() {
           pendingDriversCount={pendingDriversCount}
           pendingPassengersCount={pendingPassengersCount}
           pendingChangeRequestsCount={pendingChangeRequestsCount}
+          adminsCount={adminAccounts.length}
         />
 
         {/* MAIN PANEL CONTENT VIEW */}
@@ -1699,6 +1859,14 @@ export default function App() {
                   setViewingUserType={setViewingUserType}
                   setShowViewUserModal={setShowViewUserModal}
                   onReviewChangeRequest={handleReviewDriverChangeRequest}
+                  adminAccounts={adminAccounts}
+                  newAdminForm={newAdminForm}
+                  setNewAdminForm={setNewAdminForm}
+                  isCreatingAdmin={isCreatingAdmin}
+                  activeAdminActionId={activeAdminActionId}
+                  onCreateAdmin={handleCreateAdmin}
+                  onUpdateAdmin={handleUpdateAdmin}
+                  onDeleteAdmin={handleDeleteAdmin}
                 />
               )}
 

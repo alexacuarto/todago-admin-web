@@ -3,14 +3,15 @@ interface SidebarProps {
   setActiveTab: (tab: "dashboard" | "ride-requests" | "earnings" | "users" | "feedback" | "profile" | "create-driver" | "fare-settings") => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
-  usersSubTab: "drivers" | "passengers" | "requests";
-  setUsersSubTab: (subTab: "drivers" | "passengers" | "requests") => void;
+  usersSubTab: "drivers" | "passengers" | "requests" | "admins";
+  setUsersSubTab: (subTab: "drivers" | "passengers" | "requests" | "admins") => void;
   pendingRequestsCount?: number;
   openFeedbackCount?: number;
   newUsersCount?: number;
   pendingDriversCount?: number;
   pendingPassengersCount?: number;
   pendingChangeRequestsCount?: number;
+  adminsCount?: number;
 }
 
 type AdminNavTab = SidebarProps["activeTab"];
@@ -28,6 +29,7 @@ export default function Sidebar({
   pendingDriversCount = 0,
   pendingPassengersCount = 0,
   pendingChangeRequestsCount = 0,
+  adminsCount = 0,
 }: SidebarProps) {
   const getTabClass = (tab: AdminNavTab) => {
     const isActive = activeTab === tab;
@@ -42,17 +44,16 @@ export default function Sidebar({
     setMobileMenuOpen(false);
   };
 
-  const goToUsers = (subTab: "drivers" | "passengers" | "requests") => {
+  const goToUsers = (subTab: "drivers" | "passengers" | "requests" | "admins") => {
     setActiveTab("users");
     setUsersSubTab(subTab);
     setMobileMenuOpen(false);
   };
 
-  const getUsersSubClass = (subTab: "drivers" | "passengers" | "requests") =>
-    `w-full text-left pl-14 pr-4 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-between ${
-      activeTab === "users" && usersSubTab === subTab
-        ? "text-[#000C7D] bg-white/70"
-        : "text-slate-600 hover:text-[#000C7D] hover:bg-white/40"
+  const getUsersSubClass = (subTab: "drivers" | "passengers" | "requests" | "admins") =>
+    `w-full text-left pl-14 pr-4 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-between ${activeTab === "users" && usersSubTab === subTab
+      ? "text-[#000C7D] bg-white/70"
+      : "text-slate-600 hover:text-[#000C7D] hover:bg-white/40"
     }`;
 
   return (
@@ -95,9 +96,8 @@ export default function Sidebar({
             </svg>
             <span className="flex-1">Ride Requests</span>
             {pendingRequestsCount > 0 && (
-              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
-                activeTab === "ride-requests" ? "bg-rose-400 text-white" : "bg-rose-500 text-white shadow-xs"
-              }`}>
+              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${activeTab === "ride-requests" ? "bg-rose-400 text-white" : "bg-rose-500 text-white shadow-xs"
+                }`}>
                 {pendingRequestsCount}
               </span>
             )}
@@ -127,9 +127,8 @@ export default function Sidebar({
             </svg>
             <span className="flex-1">Feedback</span>
             {openFeedbackCount > 0 && (
-              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
-                activeTab === "feedback" ? "bg-amber-400 text-slate-900" : "bg-amber-500 text-white shadow-xs"
-              }`}>
+              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${activeTab === "feedback" ? "bg-amber-400 text-slate-900" : "bg-amber-500 text-white shadow-xs"
+                }`}>
                 {openFeedbackCount}
               </span>
             )}
@@ -144,9 +143,8 @@ export default function Sidebar({
             </svg>
             <span className="flex-1">Users Management</span>
             {newUsersCount > 0 && (
-              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
-                activeTab === "users" ? "bg-sky-400 text-slate-900" : "bg-[#000C7D] text-white border border-[#000C7D]/20 shadow-xs"
-              }`}>
+              <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${activeTab === "users" ? "bg-sky-400 text-slate-900" : "bg-[#000C7D] text-white border border-[#000C7D]/20 shadow-xs"
+                }`}>
                 {newUsersCount}
               </span>
             )}
@@ -176,6 +174,14 @@ export default function Sidebar({
                 </span>
               )}
             </button>
+            {/* <button onClick={() => goToUsers("admins")} className={getUsersSubClass("admins")}>
+              <span>Admin Accounts</span>
+              {adminsCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-blue-100 text-[#000C7D] border border-blue-200">
+                  {adminsCount}
+                </span>
+              )}
+            </button> */}
           </div>
         </nav>
       </aside>
