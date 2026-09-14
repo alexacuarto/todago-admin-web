@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 // PostgREST caps a single response; dashboard totals must include every page.
+//main copy
 export async function fetchAllRows(table: string, columns = "*", order = "id") {
   const rows: any[] = [];
   const pageSize = 500;
