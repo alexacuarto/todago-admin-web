@@ -1,4 +1,5 @@
 import { RideRequest } from "../../types";
+import { formatDateTime } from "../../lib/dateUtils";
 
 interface ViewRequestModalProps {
   isOpen: boolean;
@@ -15,9 +16,10 @@ export default function ViewRequestModal({
 }: ViewRequestModalProps) {
   if (!isOpen || !viewingRequest) return null;
 
+  const hasMultipleStops = Boolean(viewingRequest.stops && viewingRequest.stops.length > 1);
   const isSpecialTrip =
     viewingRequest.tripType?.toLowerCase().includes("special") ||
-    (viewingRequest.stops && viewingRequest.stops.length > 0) ||
+    hasMultipleStops ||
     (viewingRequest.totalStops != null && viewingRequest.totalStops > 1);
   const isRoundTrip = !isSpecialTrip && (viewingRequest.tripType?.toLowerCase().includes("round") ?? false);
   const stopsCount = viewingRequest.stops?.length || viewingRequest.totalStops || (isSpecialTrip ? 1 : 1);
@@ -28,7 +30,7 @@ export default function ViewRequestModal({
         <div className="bg-[#000C7D] text-white px-6 py-5 flex items-center justify-between">
           <div className="text-left">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-200">
-              {isSpecialTrip ? `Special Trip • ${stopsCount} Stops` : isRoundTrip ? "Round Trip" : "One Way Trip"}
+              {hasMultipleStops ? `Special Trip • ${stopsCount} Stops` : isSpecialTrip ? "Special Trip" : isRoundTrip ? "Round Trip" : "One Way Trip"}
             </span>
             <h3 className="font-bold text-lg">Booking Details</h3>
           </div>
@@ -66,7 +68,7 @@ export default function ViewRequestModal({
               )}
             </div>
 
-            {isSpecialTrip && viewingRequest.stops && viewingRequest.stops.length > 0 && (
+            {hasMultipleStops && viewingRequest.stops && viewingRequest.stops.length > 0 && (
               <div className="col-span-2 bg-sky-50/60 rounded-2xl p-4 border border-sky-100">
                 <div className="flex flex-col gap-2.5">
                   {viewingRequest.stops.map((stop, idx) => {
@@ -123,7 +125,7 @@ export default function ViewRequestModal({
                             )}
                             {stop.arrived_at && (
                               <span className="text-emerald-700 font-semibold">
-                                ⏱️ Arrived: {new Date(stop.arrived_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                ⏱️ Arrived: {formatDateTime(stop.arrived_at)}
                               </span>
                             )}
                           </div>
@@ -178,7 +180,7 @@ export default function ViewRequestModal({
             </div>
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Booking Time</p>
-              <p className="font-bold text-slate-500 mt-0.5">{viewingRequest.time}</p>
+              <p className="font-bold text-slate-500 mt-0.5">{formatDateTime(viewingRequest.requestedAt || viewingRequest.time)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">TODA Association</p>
@@ -213,9 +215,7 @@ export default function ViewRequestModal({
                 <div>
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Cancelled At</p>
                   <p className="font-bold text-slate-600 mt-0.5">
-                    {viewingRequest.cancelled_at
-                      ? new Date(viewingRequest.cancelled_at).toLocaleString()
-                      : "N/A"}
+                    {formatDateTime(viewingRequest.cancelled_at)}
                   </p>
                 </div>
                 <div className="col-span-2 bg-rose-50/50 p-3 rounded-xl border border-rose-100/50 flex flex-col gap-2">
@@ -247,7 +247,7 @@ export default function ViewRequestModal({
                         {request.discountType} Companion {request.companionIndex}
                       </p>
                       <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                        {request.reviewedAt ? `Reviewed ${new Date(request.reviewedAt).toLocaleString()}` : "Pending driver review"}
+                        {request.reviewedAt ? `Reviewed ${formatDateTime(request.reviewedAt)}` : "Pending driver review"}
                       </p>
                       {request.rejectionReason && (
                         <p className="text-xs font-semibold text-rose-600 mt-1">Reason: {request.rejectionReason}</p>
