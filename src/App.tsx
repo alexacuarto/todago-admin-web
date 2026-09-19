@@ -3,6 +3,7 @@ import { fetchAllRows } from "./lib/databaseRows";
 import { createDriverAccount } from "./lib/driverService";
 import { createAdminAccount, deleteAdminAccount, updateAdminAccount } from "./lib/adminAccountService";
 import { getDriverActivityStatus } from "./lib/driverActivity";
+import { formatDateTime } from "./lib/dateUtils";
 import { supabase } from "./lib/supabase";
 import { AdminAccount, BookingStop, Driver, DriverProfileChangeRequest, FeedbackReport, Passenger, RideRequest } from "./types";
 
@@ -645,7 +646,7 @@ export default function App() {
                 rejectionReason: request.rejection_reason || null,
               }))
             : [],
-          time: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A",
+          time: b.created_at ? formatDateTime(b.created_at) : "N/A",
           requestedAt: b.created_at || undefined,
           regularPassengerCount: b.passenger_qty && (!b.discount_passenger_type || b.discount_passenger_type === "Regular") ? Number(b.passenger_qty) : 0,
           studentPassengerCount: b.discount_passenger_type === "Student" ? Number(b.passenger_qty || 0) : 0,
