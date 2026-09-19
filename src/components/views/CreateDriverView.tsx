@@ -23,7 +23,7 @@ export default function CreateDriverView({
         <form onSubmit={onSubmit} className="flex flex-col gap-6">
           {/* Header */}
           <div className="text-left">
-            <h4 className="text-md font-bold text-[#000C7D] tracking-wide uppercase">1Driver Information</h4>
+            <h4 className="text-md font-bold text-[#000C7D] tracking-wide uppercase">Driver Information</h4>
             <p className="text-xs text-slate-400 font-semibold mt-1">Create a new driver account. Documents can be uploaded during or after creation.</p>
           </div>
 
