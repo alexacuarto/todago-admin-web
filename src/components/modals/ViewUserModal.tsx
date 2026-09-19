@@ -93,12 +93,12 @@ async function resolveStorageUrl(
   const bucketName = rawUrl.includes("/avatars/")
     ? "avatars"
     : rawUrl.includes("/discount-ids/")
-    ? "discount-ids"
-    : rawUrl.includes("/driver-documents/")
-    ? "driver-documents"
-    : rawUrl.includes("/licenses/")
-    ? "licenses"
-    : defaultBucket;
+      ? "discount-ids"
+      : rawUrl.includes("/driver-documents/")
+        ? "driver-documents"
+        : rawUrl.includes("/licenses/")
+          ? "licenses"
+          : defaultBucket;
 
   let path = rawUrl;
   if (path.includes(`/${bucketName}/`)) {
@@ -112,7 +112,7 @@ async function resolveStorageUrl(
       } else {
         path = u.pathname.replace(/^\/+/, "");
       }
-    } catch (_) {}
+    } catch (_) { }
   }
   if (path.includes("?")) {
     path = path.split("?")[0];
@@ -180,6 +180,8 @@ export default function ViewUserModal({
   const [selectedToda, setSelectedToda] = useState("");
   const [isUpdatingToda, setIsUpdatingToda] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [isTogglingDocStatus, setIsTogglingDocStatus] = useState(false);
+  const [manualDocStatusOverride, setManualDocStatusOverride] = useState<string | null>(null);
   const passengerDocumentUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentUrl : null;
   const passengerDocumentBackUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentBackUrl : null;
 
@@ -191,6 +193,7 @@ export default function ViewUserModal({
     setPassengerSelfiePreviewUrl(null);
     setActivePassengerAction(null);
     setPassengerActionReason("");
+    setManualDocStatusOverride(null);
 
     if (viewingUser && viewingUserType === "driver") {
       const driver = viewingUser as Driver;
@@ -255,6 +258,8 @@ export default function ViewUserModal({
   const visibleDriverChangeRequests = driver
     ? driverChangeRequests.filter((request) => request.driverId === driver.id)
     : [];
+
+  const effectiveDocStatus = manualDocStatusOverride ?? driver?.documentStatus ?? "PENDING";
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -322,13 +327,13 @@ export default function ViewUserModal({
   ) => {
     const url =
       type === "front" ? driver?.licenseFrontUrl || driver?.licensePhotoUrl || "" :
-      type === "back" ? driver?.licenseBackUrl || "" :
-      type === "franchise" ? driver?.franchiseUrl || "" :
-      type === "franchise_back" ? driver?.franchiseBackUrl || "" :
-      type === "selfie" ? driver?.selfiePhotoUrl || driver?.avatarUrl || "" :
-      type === "passenger_selfie" ? passenger?.selfiePhotoUrl || passenger?.avatarUrl || "" :
-      type === "discount_back" ? passenger?.discountDocumentBackUrl || "" :
-      passenger?.discountDocumentUrl || "";
+        type === "back" ? driver?.licenseBackUrl || "" :
+          type === "franchise" ? driver?.franchiseUrl || "" :
+            type === "franchise_back" ? driver?.franchiseBackUrl || "" :
+              type === "selfie" ? driver?.selfiePhotoUrl || driver?.avatarUrl || "" :
+                type === "passenger_selfie" ? passenger?.selfiePhotoUrl || passenger?.avatarUrl || "" :
+                  type === "discount_back" ? passenger?.discountDocumentBackUrl || "" :
+                    passenger?.discountDocumentUrl || "";
 
     if (!url) return;
     setZoomType(type);
@@ -339,10 +344,10 @@ export default function ViewUserModal({
         (type === "selfie" || type === "passenger_selfie")
           ? "avatars"
           : (type === "discount" || type === "discount_back")
-          ? "discount-ids"
-          : type === "front" || type === "back"
-          ? "licenses"
-          : "driver-documents";
+            ? "discount-ids"
+            : type === "front" || type === "back"
+              ? "licenses"
+              : "driver-documents";
 
       const resolved = await resolveStorageUrl(url, defaultBucket);
       setSignedUrl(resolved || url);
@@ -381,6 +386,56 @@ export default function ViewUserModal({
       alert(`Failed to update TODA: ${err.message || err}`);
     } finally {
       setIsUpdatingToda(false);
+    }
+  };
+
+  const handleToggleDriverDocumentStatus = async (targetStatus: "VERIFIED" | "PENDING") => {
+    if (!driver) return;
+    setIsTogglingDocStatus(true);
+    try {
+      // 1. Try RPC admin_set_driver_document_status
+      const { error: rpcError } = await supabase.rpc("admin_set_driver_document_status", {
+        p_driver_id: driver.id,
+        p_status: targetStatus,
+        p_reason: targetStatus === "VERIFIED" ? null : "Set to pending by administrator",
+      });
+
+      if (rpcError) {
+        console.warn("RPC admin_set_driver_document_status failed, falling back to direct update:", rpcError);
+        // Fallback to direct table update
+        const { error: updateError } = await supabase
+          .from("drivers")
+          .update({
+            document_status: targetStatus,
+            document_issue_reason: targetStatus === "VERIFIED" ? null : "Set to pending by administrator",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", driver.id);
+
+        if (updateError) throw updateError;
+      }
+
+      setManualDocStatusOverride(targetStatus);
+
+      // Mutate viewingUser directly so other components in the same render cycle reflect changes
+      if (viewingUser && viewingUserType === "driver") {
+        (viewingUser as Driver).documentStatus = targetStatus;
+        (viewingUser as Driver).status = targetStatus === "VERIFIED" ? "Active" : "Inactive";
+        (viewingUser as Driver).accountStatus = targetStatus === "VERIFIED" ? "ACTIVE" : "PENDING";
+      }
+
+      alert(
+        targetStatus === "VERIFIED"
+          ? "Driver documents activated! Status is now VERIFIED / Active and driver can go online."
+          : "Driver document status changed to PENDING."
+      );
+
+      onRefreshData?.();
+    } catch (err: any) {
+      console.error("Failed to update driver document status:", err);
+      alert(`Failed to update status: ${err.message || err}`);
+    } finally {
+      setIsTogglingDocStatus(false);
     }
   };
 
@@ -688,11 +743,45 @@ export default function ViewUserModal({
                 </div>
                 <Field
                   label="Document Status"
-                  value={<span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge(driver.documentStatus || "PENDING")}`}>{driver.documentStatus || "PENDING"}</span>}
+                  value={
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge(effectiveDocStatus)}`}>
+                        {effectiveDocStatus}
+                      </span>
+                      {effectiveDocStatus !== "VERIFIED" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                          disabled={isTogglingDocStatus}
+                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+                          title="Dynamically activate driver status documents even if some documents are still missing"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          {isTogglingDocStatus ? "..." : "Activate"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                          disabled={isTogglingDocStatus}
+                          className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 rounded-md text-[10px] font-semibold transition-all cursor-pointer disabled:opacity-50"
+                          title="Revert document status to PENDING"
+                        >
+                          {isTogglingDocStatus ? "..." : "Set to Pending"}
+                        </button>
+                      )}
+                    </div>
+                  }
                 />
                 <Field
                   label="Activity Status"
-                  value={<span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge(driver.activityStatus)}`}>{driver.activityStatus}</span>}
+                  value={
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusBadge(effectiveDocStatus === "VERIFIED" && !driver.adminActionType ? "Active" : driver.activityStatus)}`}>
+                      {effectiveDocStatus === "VERIFIED" && !driver.adminActionType ? "Active" : driver.activityStatus}
+                    </span>
+                  }
                 />
                 <Field
                   label="Online State"
@@ -736,7 +825,38 @@ export default function ViewUserModal({
               </div>
 
               <div className="flex flex-col gap-4 border border-slate-100 p-4 rounded-2xl bg-slate-50/20">
-                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Driver Documents & Verification</h4>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200/60 pb-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider">Driver Documents & Verification</h4>
+                    <p className="text-[11px] text-slate-400 font-medium">Activate documents dynamically to make this driver active and ready to accept rides even if some files are pending.</p>
+                  </div>
+                  {effectiveDocStatus === "VERIFIED" ? (
+                    <button
+                      type="button"
+                      disabled={isTogglingDocStatus}
+                      onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto disabled:opacity-60"
+                      title="Revert document status back to PENDING"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {isTogglingDocStatus ? "Updating..." : "Set Docs to Pending"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isTogglingDocStatus}
+                      onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto disabled:opacity-60"
+                      title="Activate driver documents to OK (VERIFIED) immediately"
+                    >
+                      {isTogglingDocStatus ? "Activating..." : "Activate Documents"}
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Driver Verification Selfie Card */}
                   <div className="bg-white p-4 rounded-xl border border-slate-200/60 flex flex-col gap-2.5">
@@ -745,9 +865,8 @@ export default function ViewUserModal({
                     </div>
                     <div
                       onClick={() => (driver.selfiePhotoUrl || driver.avatarUrl) && handleZoomClick("selfie")}
-                      className={`relative w-full h-28 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
-                        (driver.selfiePhotoUrl || driver.avatarUrl) ? "cursor-pointer group shadow-xs" : ""
-                      }`}
+                      className={`relative w-full h-28 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${(driver.selfiePhotoUrl || driver.avatarUrl) ? "cursor-pointer group shadow-xs" : ""
+                        }`}
                     >
                       {driverSelfiePreviewUrl ? (
                         <>
@@ -876,6 +995,35 @@ export default function ViewUserModal({
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
+                  {effectiveDocStatus !== "VERIFIED" ? (
+                    <button
+                      type="button"
+                      disabled={isTogglingDocStatus}
+                      onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60"
+                      title="Activate driver documents to OK (VERIFIED) so driver can go online immediately"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      {isTogglingDocStatus ? "Activating Driver..." : "Activate Driver (Approve Docs)"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isTogglingDocStatus}
+                      onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                      className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
+                      title="Revert driver document status to PENDING"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {isTogglingDocStatus ? "Updating..." : "Deactivate Docs (Set Pending)"}
+                    </button>
+                  )}
                   {driver.adminActionType ? (
                     <button
                       type="button"
@@ -1048,294 +1196,290 @@ export default function ViewUserModal({
                       </button>
                     </div>
                   )}
-                {/* 1. Account Verification ID Card (Uploaded Document) */}
-                <div className="col-span-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      Document Identification
-                    </span>
-                    <p className="font-bold text-[#000C7D]">Account Verification ID</p>
-                    <p className="text-xs text-slate-500 font-semibold">
-                      Status:{" "}
-                      <span className={`font-bold ${
-                        passenger.discountDocumentStatus === "VERIFIED"
+                  {/* 1. Account Verification ID Card (Uploaded Document) */}
+                  <div className="col-span-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        Document Identification
+                      </span>
+                      <p className="font-bold text-[#000C7D]">Account Verification ID</p>
+                      <p className="text-xs text-slate-500 font-semibold">
+                        Status:{" "}
+                        <span className={`font-bold ${passenger.discountDocumentStatus === "VERIFIED"
                           ? "text-emerald-600"
                           : passenger.discountDocumentStatus === "REJECTED"
-                          ? "text-rose-600"
-                          : "text-amber-600"
-                      }`}>
-                        {passenger.discountDocumentStatus || (passenger.discountDocumentUrl ? "PENDING" : "NOT_SUBMITTED")}
-                      </span>
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Front Image Preview */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-600 uppercase">Front Page of ID</span>
-                      <div
-                        onClick={() => passenger.discountDocumentUrl && handleZoomClick("discount")}
-                        className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
-                          passenger.discountDocumentUrl ? "cursor-pointer group shadow-xs" : ""
-                        }`}
-                      >
-                        {passengerIdPreviewUrl ? (
-                          <>
-                            <img
-                              src={passengerIdPreviewUrl}
-                              alt="Front ID Preview"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                            />
-                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              Click to enlarge
-                            </div>
-                          </>
-                        ) : passenger.discountDocumentUrl ? (
-                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                            <span className="text-xs font-semibold">Loading front preview...</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
-                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                              <circle cx="9" cy="9" r="2"/>
-                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                            </svg>
-                            <span className="text-xs font-semibold">No front ID uploaded</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Back Image Preview */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-600 uppercase">Back Page of ID</span>
-                      <div
-                        onClick={() => passenger.discountDocumentBackUrl && handleZoomClick("discount_back")}
-                        className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
-                          passenger.discountDocumentBackUrl ? "cursor-pointer group shadow-xs" : ""
-                        }`}
-                      >
-                        {passengerIdBackPreviewUrl ? (
-                          <>
-                            <img
-                              src={passengerIdBackPreviewUrl}
-                              alt="Back ID Preview"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                            />
-                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              Click to enlarge
-                            </div>
-                          </>
-                        ) : passenger.discountDocumentBackUrl ? (
-                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                            <span className="text-xs font-semibold">Loading back preview...</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
-                              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                              <circle cx="9" cy="9" r="2"/>
-                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                            </svg>
-                            <span className="text-xs font-semibold">No back ID uploaded</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {passenger.discountDocumentStatus === "PENDING" && (passenger.discountDocumentUrl || passenger.discountDocumentBackUrl) && (
-                    <div className="flex flex-col gap-3 mt-1">
-                      <textarea
-                        value={discountReviewReason}
-                        onChange={(event) => setDiscountReviewReason(event.target.value)}
-                        rows={2}
-                        placeholder="Rejection reason, required only when rejecting."
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 resize-none"
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleReviewDiscount("VERIFIED")}
-                          disabled={isReviewingDiscount}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
-                        >
-                          {isReviewingDiscount ? "Processing..." : "Approve ID & Activate"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewDiscount("REJECTED")}
-                          disabled={isReviewingDiscount}
-                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
-                        >
-                          {isReviewingDiscount ? "Processing..." : "Reject ID"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Passenger Verification Selfie Card (Under the ID) */}
-                <div className="col-span-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#000C7D] uppercase">Verification Selfie</span>
-                  </div>
-                  <div
-                    onClick={() => (passenger.selfiePhotoUrl || passenger.avatarUrl) && handleZoomClick("passenger_selfie")}
-                    className={`relative w-full max-w-xs h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${
-                      (passenger.selfiePhotoUrl || passenger.avatarUrl) ? "cursor-pointer group shadow-xs" : ""
-                    }`}
-                  >
-                    {passengerSelfiePreviewUrl ? (
-                      <>
-                        <img
-                          src={passengerSelfiePreviewUrl}
-                          alt="Passenger Selfie Preview"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                          Click to enlarge
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
-                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                          <circle cx="12" cy="13" r="4" />
-                        </svg>
-                        <span className="text-xs font-semibold">No selfie provided</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-b border-slate-100 pb-5">
-                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-3">Ride History</h4>
-                {passengerRideHistory.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No bookings found for this passenger.</p>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-150 bg-slate-50 text-slate-500 font-bold uppercase">
-                            <th className="p-2.5">Driver</th>
-                            <th className="p-2.5">Route</th>
-                            <th className="p-2.5">Fare</th>
-                            <th className="p-2.5">Time</th>
-                            <th className="p-2.5">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                          {visibleRideHistory.map((request) => (
-                            <tr key={request.id} className="hover:bg-slate-50/50">
-                              <td className="p-2.5 font-bold text-[#000C7D]">{request.driver}</td>
-                              <td className="p-2.5">
-                                <p className="font-bold text-slate-700">{request.location}</p>
-                                <p className="text-[10px] text-slate-400 font-normal">{request.destination}</p>
-                              </td>
-                              <td className="p-2.5 font-bold text-[#000C7D]">₱{request.fare.toLocaleString()}</td>
-                              <td className="p-2.5 text-slate-500">{request.time}</td>
-                              <td className="p-2.5">
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusBadge(request.status)}`}>
-                                  {request.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {passengerRideHistory.length > 3 && (
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-slate-400 font-semibold">Page {ridePage} of {ridePageCount}</p>
-                        <div className="flex gap-2">
-                          <button onClick={() => setRidePage((current) => Math.max(1, current - 1))} disabled={ridePage === 1} className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">Previous</button>
-                          <button onClick={() => setRidePage((current) => Math.min(ridePageCount, current + 1))} disabled={ridePage === ridePageCount} className="px-3 py-1.5 bg-[#000C7D] text-white rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">Next</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-2 items-center flex-wrap">
-                  {isPassengerRestricted ? (
-                    <button
-                      type="button"
-                      onClick={() => setActivePassengerAction("lift")}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                    >
-                      Lift Restriction
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setActivePassengerAction("restrict")}
-                      className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 cursor-pointer"
-                    >
-                      Restrict Passenger
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    disabled={isDeletingUser}
-                    onClick={async () => {
-                      setIsDeletingUser(true);
-                      try {
-                        await onDeletePassenger(passenger);
-                      } finally {
-                        setIsDeletingUser(false);
-                      }
-                    }}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isDeletingUser ? "Deleting Passenger..." : "Delete Passenger"}
-                  </button>
-                </div>
-
-                {activePassengerAction && (
-                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
-                    {activePassengerAction === "restrict" ? (
-                      <textarea
-                        rows={2}
-                        placeholder="Reason for restriction (e.g. repeated booking cancellations, abusive behavior, policy violation)"
-                        value={passengerActionReason}
-                        onChange={(event) => setPassengerActionReason(event.target.value)}
-                        className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-[#000C7D] outline-hidden focus:border-blue-400 resize-none"
-                      />
-                    ) : (
-                      <p className="text-xs text-slate-600 font-semibold">
-                        Confirm lifting this passenger's booking restriction. The passenger will be able to book rides again immediately.
+                            ? "text-rose-600"
+                            : "text-amber-600"
+                          }`}>
+                          {passenger.discountDocumentStatus || (passenger.discountDocumentUrl ? "PENDING" : "NOT_SUBMITTED")}
+                        </span>
                       </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Front Image Preview */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase">Front Page of ID</span>
+                        <div
+                          onClick={() => passenger.discountDocumentUrl && handleZoomClick("discount")}
+                          className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${passenger.discountDocumentUrl ? "cursor-pointer group shadow-xs" : ""
+                            }`}
+                        >
+                          {passengerIdPreviewUrl ? (
+                            <>
+                              <img
+                                src={passengerIdPreviewUrl}
+                                alt="Front ID Preview"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                Click to enlarge
+                              </div>
+                            </>
+                          ) : passenger.discountDocumentUrl ? (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                              <span className="text-xs font-semibold">Loading front preview...</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                                <circle cx="9" cy="9" r="2" />
+                                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                              </svg>
+                              <span className="text-xs font-semibold">No front ID uploaded</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Back Image Preview */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase">Back Page of ID</span>
+                        <div
+                          onClick={() => passenger.discountDocumentBackUrl && handleZoomClick("discount_back")}
+                          className={`relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${passenger.discountDocumentBackUrl ? "cursor-pointer group shadow-xs" : ""
+                            }`}
+                        >
+                          {passengerIdBackPreviewUrl ? (
+                            <>
+                              <img
+                                src={passengerIdBackPreviewUrl}
+                                alt="Back ID Preview"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                Click to enlarge
+                              </div>
+                            </>
+                          ) : passenger.discountDocumentBackUrl ? (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                              <span className="text-xs font-semibold">Loading back preview...</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                                <circle cx="9" cy="9" r="2" />
+                                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                              </svg>
+                              <span className="text-xs font-semibold">No back ID uploaded</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {passenger.discountDocumentStatus === "PENDING" && (passenger.discountDocumentUrl || passenger.discountDocumentBackUrl) && (
+                      <div className="flex flex-col gap-3 mt-1">
+                        <textarea
+                          value={discountReviewReason}
+                          onChange={(event) => setDiscountReviewReason(event.target.value)}
+                          rows={2}
+                          placeholder="Rejection reason, required only when rejecting."
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 resize-none"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleReviewDiscount("VERIFIED")}
+                            disabled={isReviewingDiscount}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
+                          >
+                            {isReviewingDiscount ? "Processing..." : "Approve ID & Activate"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReviewDiscount("REJECTED")}
+                            disabled={isReviewingDiscount}
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
+                          >
+                            {isReviewingDiscount ? "Processing..." : "Reject ID"}
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActivePassengerAction(null)}
-                        className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handlePassengerAction}
-                        disabled={isExecutingPassengerAction}
-                        className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
-                      >
-                        {isExecutingPassengerAction ? "Processing..." : "Confirm"}
-                      </button>
+                  </div>
+
+                  {/* 2. Passenger Verification Selfie Card (Under the ID) */}
+                  <div className="col-span-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#000C7D] uppercase">Verification Selfie</span>
+                    </div>
+                    <div
+                      onClick={() => (passenger.selfiePhotoUrl || passenger.avatarUrl) && handleZoomClick("passenger_selfie")}
+                      className={`relative w-full max-w-xs h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center ${(passenger.selfiePhotoUrl || passenger.avatarUrl) ? "cursor-pointer group shadow-xs" : ""
+                        }`}
+                    >
+                      {passengerSelfiePreviewUrl ? (
+                        <>
+                          <img
+                            src={passengerSelfiePreviewUrl}
+                            alt="Passenger Selfie Preview"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                            Click to enlarge
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4 text-center">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-1 text-slate-300">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                          </svg>
+                          <span className="text-xs font-semibold">No selfie provided</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            </>
-          );
-        })()}
+                </div>
+
+                <div className="border-b border-slate-100 pb-5">
+                  <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-3">Ride History</h4>
+                  {passengerRideHistory.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No bookings found for this passenger.</p>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-150 bg-slate-50 text-slate-500 font-bold uppercase">
+                              <th className="p-2.5">Driver</th>
+                              <th className="p-2.5">Route</th>
+                              <th className="p-2.5">Fare</th>
+                              <th className="p-2.5">Time</th>
+                              <th className="p-2.5">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                            {visibleRideHistory.map((request) => (
+                              <tr key={request.id} className="hover:bg-slate-50/50">
+                                <td className="p-2.5 font-bold text-[#000C7D]">{request.driver}</td>
+                                <td className="p-2.5">
+                                  <p className="font-bold text-slate-700">{request.location}</p>
+                                  <p className="text-[10px] text-slate-400 font-normal">{request.destination}</p>
+                                </td>
+                                <td className="p-2.5 font-bold text-[#000C7D]">₱{request.fare.toLocaleString()}</td>
+                                <td className="p-2.5 text-slate-500">{request.time}</td>
+                                <td className="p-2.5">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusBadge(request.status)}`}>
+                                    {request.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {passengerRideHistory.length > 3 && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-slate-400 font-semibold">Page {ridePage} of {ridePageCount}</p>
+                          <div className="flex gap-2">
+                            <button onClick={() => setRidePage((current) => Math.max(1, current - 1))} disabled={ridePage === 1} className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">Previous</button>
+                            <button onClick={() => setRidePage((current) => Math.min(ridePageCount, current + 1))} disabled={ridePage === ridePageCount} className="px-3 py-1.5 bg-[#000C7D] text-white rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">Next</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2 items-center flex-wrap">
+                    {isPassengerRestricted ? (
+                      <button
+                        type="button"
+                        onClick={() => setActivePassengerAction("lift")}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        Lift Restriction
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setActivePassengerAction("restrict")}
+                        className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 cursor-pointer"
+                      >
+                        Restrict Passenger
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={isDeletingUser}
+                      onClick={async () => {
+                        setIsDeletingUser(true);
+                        try {
+                          await onDeletePassenger(passenger);
+                        } finally {
+                          setIsDeletingUser(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isDeletingUser ? "Deleting Passenger..." : "Delete Passenger"}
+                    </button>
+                  </div>
+
+                  {activePassengerAction && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
+                      {activePassengerAction === "restrict" ? (
+                        <textarea
+                          rows={2}
+                          placeholder="Reason for restriction (e.g. repeated booking cancellations, abusive behavior, policy violation)"
+                          value={passengerActionReason}
+                          onChange={(event) => setPassengerActionReason(event.target.value)}
+                          className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-[#000C7D] outline-hidden focus:border-blue-400 resize-none"
+                        />
+                      ) : (
+                        <p className="text-xs text-slate-600 font-semibold">
+                          Confirm lifting this passenger's booking restriction. The passenger will be able to book rides again immediately.
+                        </p>
+                      )}
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActivePassengerAction(null)}
+                          className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePassengerAction}
+                          disabled={isExecutingPassengerAction}
+                          className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
+                        >
+                          {isExecutingPassengerAction ? "Processing..." : "Confirm"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
 
           <div className="border-t border-slate-100 pt-4 flex items-center justify-end">
             <button onClick={onClose} className="px-6 py-2.5 bg-[#000C7D] hover:bg-blue-800 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-xs hover:shadow">
@@ -1375,18 +1519,18 @@ export default function ViewUserModal({
               {zoomType === "front"
                 ? "License Front Copy"
                 : zoomType === "back"
-                ? "License Back Copy"
-                : zoomType === "franchise_back"
-                ? "Franchise Back Copy"
-                : zoomType === "discount"
-                ? "Passenger Verification ID (Front)"
-                : zoomType === "discount_back"
-                ? "Passenger Verification ID (Back)"
-                : zoomType === "selfie"
-                ? "Driver Verification Selfie"
-                : zoomType === "passenger_selfie"
-                ? "Passenger Verification Selfie"
-                : "Franchise Permit Copy"}
+                  ? "License Back Copy"
+                  : zoomType === "franchise_back"
+                    ? "Franchise Back Copy"
+                    : zoomType === "discount"
+                      ? "Passenger Verification ID (Front)"
+                      : zoomType === "discount_back"
+                        ? "Passenger Verification ID (Back)"
+                        : zoomType === "selfie"
+                          ? "Driver Verification Selfie"
+                          : zoomType === "passenger_selfie"
+                            ? "Passenger Verification Selfie"
+                            : "Franchise Permit Copy"}
             </div>
           </div>
         </div>
