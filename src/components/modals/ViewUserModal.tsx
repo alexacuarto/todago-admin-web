@@ -90,15 +90,14 @@ async function resolveStorageUrl(
   defaultBucket: string = "driver-documents"
 ): Promise<string | null> {
   if (!rawUrl) return null;
+  const effectiveDefault = defaultBucket === "licenses" ? "driver-documents" : defaultBucket;
   const bucketName = rawUrl.includes("/avatars/")
     ? "avatars"
     : rawUrl.includes("/discount-ids/")
     ? "discount-ids"
-    : rawUrl.includes("/driver-documents/")
+    : rawUrl.includes("/driver-documents/") || rawUrl.includes("/licenses/")
     ? "driver-documents"
-    : rawUrl.includes("/licenses/")
-    ? "licenses"
-    : defaultBucket;
+    : effectiveDefault;
 
   let path = rawUrl;
   if (path.includes(`/${bucketName}/`)) {
@@ -110,24 +109,32 @@ async function resolveStorageUrl(
       if (parts.length > 1) {
         path = parts[1];
       } else {
-        path = u.pathname.replace(/^\/+/, "");
+        const subParts = u.pathname.split("/object/public/");
+        if (subParts.length > 1) {
+          const rest = subParts[1].split("/");
+          path = rest.slice(1).join("/");
+        } else {
+          path = u.pathname.replace(/^\/+/, "");
+        }
       }
     } catch (_) {}
   }
   if (path.includes("?")) {
     path = path.split("?")[0];
   }
-  path = path.replace(/^\/+/, "");
+  path = decodeURIComponent(path.replace(/^\/+/, ""));
 
   try {
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(decodeURIComponent(path), 600);
-    if (!error && data?.signedUrl) return data.signedUrl;
     const pub = supabase.storage
       .from(bucketName)
-      .getPublicUrl(decodeURIComponent(path));
-    return pub.data.publicUrl || rawUrl;
+      .getPublicUrl(path);
+    if (pub?.data?.publicUrl) return pub.data.publicUrl;
+
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(path, 600);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    return rawUrl;
   } catch (_) {
     return rawUrl;
   }
@@ -340,8 +347,6 @@ export default function ViewUserModal({
           ? "avatars"
           : (type === "discount" || type === "discount_back")
           ? "discount-ids"
-          : type === "front" || type === "back"
-          ? "licenses"
           : "driver-documents";
 
       const resolved = await resolveStorageUrl(url, defaultBucket);
@@ -1085,6 +1090,7 @@ export default function ViewUserModal({
                               src={passengerIdPreviewUrl}
                               alt="Front ID Preview"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              onError={() => setPassengerIdPreviewUrl(null)}
                             />
                             <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
                               Click to enlarge
@@ -1122,6 +1128,7 @@ export default function ViewUserModal({
                               src={passengerIdBackPreviewUrl}
                               alt="Back ID Preview"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              onError={() => setPassengerIdBackPreviewUrl(null)}
                             />
                             <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
                               Click to enlarge
