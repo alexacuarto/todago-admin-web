@@ -23,7 +23,7 @@ export default function CreateDriverView({
         <form onSubmit={onSubmit} className="flex flex-col gap-6">
           {/* Header */}
           <div className="text-left">
-            <h4 className="text-md font-bold text-[#000C7D] tracking-wide uppercase">Driver Information</h4>
+            <h4 className="text-md font-bold text-[#000C7D] tracking-wide uppercase">1Driver Information</h4>
             <p className="text-xs text-slate-400 font-semibold mt-1">Create a new driver account. Documents can be uploaded during or after creation.</p>
           </div>
 
@@ -48,8 +48,8 @@ export default function CreateDriverView({
                   value={formData.name}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                   className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.name
-                      ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
-                      : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
+                    ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
+                    : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
                     }`}
                   autoComplete="off"
                 />
@@ -73,8 +73,8 @@ export default function CreateDriverView({
                   value={formData.email}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, email: e.target.value }))}
                   className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.email
-                      ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
-                      : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
+                    ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
+                    : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
                     }`}
                   autoComplete="off"
                 />
@@ -97,8 +97,8 @@ export default function CreateDriverView({
                   value={formData.phone}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, phone: e.target.value }))}
                   className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.phone
-                      ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
-                      : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
+                    ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
+                    : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
                     }`}
                   autoComplete="off"
                 />
@@ -122,8 +122,8 @@ export default function CreateDriverView({
                   value={formData.password}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, password: e.target.value }))}
                   className={`w-full pl-11 pr-12 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.password
-                      ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
-                      : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
+                    ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
+                    : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
                     }`}
                   autoComplete="new-password"
                 />
@@ -170,8 +170,8 @@ export default function CreateDriverView({
                   value={formData.plateNumber}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, plateNumber: e.target.value }))}
                   className={`w-full pl-11 pr-4 py-3 border rounded-xl text-sm font-semibold outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all ${formData.plateNumber
-                      ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
-                      : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
+                    ? "bg-[#000C7D] text-white border-blue-950 placeholder-sky-200"
+                    : "bg-white text-[#000C7D] border-slate-200 placeholder-slate-300"
                     }`}
                   autoComplete="off"
                 />
