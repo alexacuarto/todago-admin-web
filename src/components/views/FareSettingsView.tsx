@@ -8,6 +8,7 @@ interface FareConfig {
   displayLabel: string;
   baseFare: number;
   includedKm: number;
+  succeedingKmInterval: number;
   succeedingKmFare: number;
   studentDiscount: number;
   pwdDiscount: number;
@@ -20,6 +21,7 @@ const DEFAULT_ONE_WAY: Omit<FareConfig, "id"> = {
   displayLabel: "One Way Trip",
   baseFare: 25,
   includedKm: 1,
+  succeedingKmInterval: 1,
   succeedingKmFare: 2,
   studentDiscount: 20,
   pwdDiscount: 20,
@@ -32,6 +34,7 @@ const DEFAULT_ROUND_TRIP: Omit<FareConfig, "id"> = {
   displayLabel: "Special Trip",
   baseFare: 40,
   includedKm: 2,
+  succeedingKmInterval: 1,
   succeedingKmFare: 2,
   studentDiscount: 20,
   pwdDiscount: 20,
@@ -53,6 +56,7 @@ function mapDbRow(row: any): FareConfig {
     displayLabel: row.display_label ?? (row.trip_type === "round_trip" ? "Special Trip" : "One Way Trip"),
     baseFare: rate("base_fare"),
     includedKm: rate("included_km"),
+    succeedingKmInterval: row.succeeding_km_interval != null ? Math.max(0.1, Number(row.succeeding_km_interval) || 1) : 1,
     succeedingKmFare: rate("succeeding_km_fare"),
     studentDiscount: rate("student_discount", true),
     pwdDiscount: rate("pwd_discount", true),
@@ -137,6 +141,7 @@ export default function FareSettingsView() {
         p_display_label: config.displayLabel,
         p_base_fare: config.baseFare,
         p_included_km: config.includedKm,
+        p_succeeding_km_interval: config.succeedingKmInterval || 1,
         p_succeeding_km_fare: config.succeedingKmFare,
         p_student_discount: config.studentDiscount,
         p_pwd_discount: config.pwdDiscount,
@@ -172,7 +177,8 @@ export default function FareSettingsView() {
       "Trip Type Key",
       "Base Fare (PHP)",
       "Included Distance (KM)",
-      "Succeeding Fare per KM (PHP)",
+      "Added KM Interval (KM)",
+      "Succeeding Fare per Interval (PHP)",
       "Student Discount (%)",
       "PWD Discount (%)",
       "Senior Citizen Discount (%)",
@@ -185,6 +191,7 @@ export default function FareSettingsView() {
         oneWay.tripType,
         oneWay.baseFare,
         oneWay.includedKm,
+        oneWay.succeedingKmInterval,
         oneWay.succeedingKmFare,
         `${oneWay.studentDiscount}%`,
         `${oneWay.pwdDiscount}%`,
@@ -196,6 +203,7 @@ export default function FareSettingsView() {
         roundTrip.tripType,
         roundTrip.baseFare,
         roundTrip.includedKm,
+        roundTrip.succeedingKmInterval,
         roundTrip.succeedingKmFare,
         `${roundTrip.studentDiscount}%`,
         `${roundTrip.pwdDiscount}%`,
@@ -331,7 +339,21 @@ export default function FareSettingsView() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">Succeeding KM Fare (₱ / KM)</label>
+                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">Added KM Interval (KM)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={oneWay.succeedingKmInterval}
+                  onChange={(e) => setOneWay({ ...oneWay, succeedingKmInterval: Math.max(0.1, Number(e.target.value) || 1) })}
+                  className="w-full bg-white border border-[#c7dfff] hover:border-blue-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-4 py-3 text-sm font-bold text-[#172554] transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">
+                  Succeeding KM Fare (₱ / {oneWay.succeedingKmInterval || 1} KM)
+                </label>
                 <input
                   type="number"
                   step="0.5"
@@ -455,7 +477,21 @@ export default function FareSettingsView() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">Succeeding KM Fare (₱ / KM)</label>
+                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">Added KM Interval (KM)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={roundTrip.succeedingKmInterval}
+                  onChange={(e) => setRoundTrip({ ...roundTrip, succeedingKmInterval: Math.max(0.1, Number(e.target.value) || 1) })}
+                  className="w-full bg-white border border-[#c7dfff] hover:border-blue-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-4 py-3 text-sm font-bold text-[#172554] transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-[10px] font-extrabold text-[#000C7D] tracking-wider uppercase">
+                  Succeeding KM Fare (₱ / {roundTrip.succeedingKmInterval || 1} KM)
+                </label>
                 <input
                   type="number"
                   step="0.5"
