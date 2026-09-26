@@ -262,7 +262,6 @@ export default function StatBreakdownModal({
             const todaBreakdown: Record<OfficialToda, number> = {
               "BYPASS ILAYANG BAGUIO-TODA": 0,
               "CHOT-TODA": 0,
-              "LHITC-TODA": 0,
             };
 
             let totalCompletedEarnings = 0;
@@ -275,7 +274,7 @@ export default function StatBreakdownModal({
                     d.profileId === r.driverId ||
                     (r.driver && d.name.toLowerCase() === r.driver.toLowerCase())
                 );
-                const todaName = normalizeToda(r.toda || resolvedDriver?.toda) || "LHITC-TODA";
+                const todaName = normalizeToda(r.toda || resolvedDriver?.toda);
                 if (todaName && todaBreakdown[todaName] !== undefined) {
                   todaBreakdown[todaName] += (r.fare || 0);
                 }
@@ -311,7 +310,6 @@ export default function StatBreakdownModal({
             const todaRides: Record<OfficialToda, number> = {
               "BYPASS ILAYANG BAGUIO-TODA": 0,
               "CHOT-TODA": 0,
-              "LHITC-TODA": 0,
             };
 
             let totalCompletedRides = 0;
@@ -324,7 +322,7 @@ export default function StatBreakdownModal({
                     d.profileId === r.driverId ||
                     (r.driver && d.name.toLowerCase() === r.driver.toLowerCase())
                 );
-                const todaName = normalizeToda(r.toda || resolvedDriver?.toda) || "LHITC-TODA";
+                const todaName = normalizeToda(r.toda || resolvedDriver?.toda);
                 if (todaName && todaRides[todaName] !== undefined) {
                   todaRides[todaName] += 1;
                 }
@@ -361,7 +359,6 @@ export default function StatBreakdownModal({
             const todaBreakdown: Record<OfficialToda, number> = {
               "BYPASS ILAYANG BAGUIO-TODA": 0,
               "CHOT-TODA": 0,
-              "LHITC-TODA": 0,
             };
 
             let totalFare = 0;
@@ -374,7 +371,7 @@ export default function StatBreakdownModal({
                     d.profileId === r.driverId ||
                     (r.driver && d.name.toLowerCase() === r.driver.toLowerCase())
                 );
-                const matched = normalizeToda(r.toda || resolvedDriver?.toda) || "LHITC-TODA";
+                const matched = normalizeToda(r.toda || resolvedDriver?.toda);
                 if (matched && todaBreakdown[matched] !== undefined) {
                   todaBreakdown[matched] += (r.fare || 0);
                 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Driver, DriverProfileChangeRequest, Passenger, RideRequest } from "../../types";
 import { supabase } from "../../lib/supabase";
+import { ConfirmModal, ConfirmVariant } from "./ConfirmModal";
 
 interface ViewUserModalProps {
   isOpen: boolean;
@@ -182,6 +183,16 @@ export default function ViewUserModal({
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isTogglingDocStatus, setIsTogglingDocStatus] = useState(false);
   const [manualDocStatusOverride, setManualDocStatusOverride] = useState<string | null>(null);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode | string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: ConfirmVariant;
+    isLoading?: boolean;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const passengerDocumentUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentUrl : null;
   const passengerDocumentBackUrl = viewingUserType === 'passenger' ? (viewingUser as Passenger | null)?.discountDocumentBackUrl : null;
 
@@ -202,7 +213,7 @@ export default function ViewUserModal({
       setFranchiseNo(driver.franchiseNumber || "");
       setFranchiseExpiry(driver.franchiseExpiryDate || "");
       setFranchisePlateNo(driver.plateNumber || "");
-      setSelectedToda(driver.toda || "LHITC-TODA");
+      setSelectedToda(driver.toda || "CHOT-TODA");
       setLicenseFrontFile(null);
       setLicenseBackFile(null);
       setFranchiseFile(null);
@@ -252,6 +263,20 @@ export default function ViewUserModal({
 
   const ridePageCount = Math.max(1, Math.ceil(passengerRideHistory.length / 3));
   const visibleRideHistory = passengerRideHistory.slice((ridePage - 1) * 3, ridePage * 3);
+
+  const driverRideHistory = useMemo(() => {
+    if (!viewingUser || viewingUserType !== "driver") return [];
+    const d = viewingUser as Driver;
+    return rideRequests.filter(
+      (request) =>
+        request.driverId === d.id ||
+        (d.profileId && request.driverId === d.profileId) ||
+        (request.driver && d.name && request.driver.toLowerCase() === d.name.toLowerCase())
+    );
+  }, [rideRequests, viewingUser, viewingUserType]);
+
+  const driverRidePageCount = Math.max(1, Math.ceil(driverRideHistory.length / 3));
+  const visibleDriverRideHistory = driverRideHistory.slice((ridePage - 1) * 3, ridePage * 3);
 
   const driver = viewingUserType === "driver" ? viewingUser as Driver : null;
   const passenger = viewingUserType === "passenger" ? viewingUser as Passenger : null;
@@ -367,6 +392,27 @@ export default function ViewUserModal({
     return supabase.storage.from("driver-documents").getPublicUrl(fileName).data.publicUrl;
   };
 
+  const requestUpdateToda = (newToda?: string) => {
+    if (!driver) return;
+    const todaToSave = newToda || selectedToda;
+    if (!todaToSave) return;
+    setConfirmModalConfig({
+      isOpen: true,
+      title: "Update Driver TODA",
+      message: (
+        <p className="text-slate-700">
+          Are you sure you want to change TODA association for driver <strong>{driver.name}</strong> to <strong>{todaToSave}</strong>?
+        </p>
+      ),
+      confirmText: "Yes, Update TODA",
+      variant: "primary",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleUpdateToda(newToda);
+      },
+    });
+  };
+
   const handleUpdateToda = async (newToda?: string) => {
     if (!driver) return;
     const todaToSave = newToda || selectedToda;
@@ -387,6 +433,29 @@ export default function ViewUserModal({
     } finally {
       setIsUpdatingToda(false);
     }
+  };
+
+  const requestToggleDriverDocumentStatus = (targetStatus: "VERIFIED" | "PENDING") => {
+    if (!driver) return;
+    setConfirmModalConfig({
+      isOpen: true,
+      title: targetStatus === "VERIFIED" ? "Verify Driver Documents" : "Mark Documents as Pending",
+      message: (
+        <p className="text-slate-700">
+          {targetStatus === "VERIFIED" ? (
+            <>Are you sure you want to approve documents for driver <strong>{driver.name}</strong> and activate their account?</>
+          ) : (
+            <>Are you sure you want to set document status to <strong>PENDING</strong> for driver <strong>{driver.name}</strong>? This will deactivate their account.</>
+          )}
+        </p>
+      ),
+      confirmText: targetStatus === "VERIFIED" ? "Yes, Verify & Activate" : "Yes, Set to Pending",
+      variant: targetStatus === "VERIFIED" ? "success" : "warning",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleToggleDriverDocumentStatus(targetStatus);
+      },
+    });
   };
 
   const handleToggleDriverDocumentStatus = async (targetStatus: "VERIFIED" | "PENDING") => {
@@ -478,6 +547,61 @@ export default function ViewUserModal({
     }
   };
 
+  const requestSaveDocuments = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!driver) return;
+    setConfirmModalConfig({
+      isOpen: true,
+      title: "Save Driver Documents",
+      message: (
+        <p className="text-slate-700">
+          Are you sure you want to save document details and uploaded files for driver <strong>{driver.name}</strong>?
+        </p>
+      ),
+      confirmText: "Yes, Save Documents",
+      variant: "primary",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleSaveDocuments(event);
+      },
+    });
+  };
+
+  const requestReviewDiscount = (status: "VERIFIED" | "REJECTED") => {
+    if (!passenger || isReviewingDiscount) return;
+    if (status === "REJECTED" && !discountReviewReason.trim()) {
+      alert("Please add a rejection reason.");
+      return;
+    }
+    setConfirmModalConfig({
+      isOpen: true,
+      title: status === "VERIFIED" ? "Approve Discount ID" : "Reject Discount ID",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">
+            {status === "VERIFIED" ? (
+              <>Are you sure you want to approve the ID card for passenger <strong>{passenger.name}</strong> and activate their account?</>
+            ) : (
+              <>Are you sure you want to reject the ID card for passenger <strong>{passenger.name}</strong>?</>
+            )}
+          </p>
+          {status === "REJECTED" && discountReviewReason.trim() && (
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+              <span className="text-slate-400 font-bold uppercase">Rejection Reason:</span>
+              <p className="text-slate-700 italic mt-0.5">"{discountReviewReason.trim()}"</p>
+            </div>
+          )}
+        </div>
+      ),
+      confirmText: status === "VERIFIED" ? "Yes, Approve ID" : "Yes, Reject ID",
+      variant: status === "VERIFIED" ? "success" : "danger",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleReviewDiscount(status);
+      },
+    });
+  };
+
   const handleReviewDiscount = async (status: "VERIFIED" | "REJECTED") => {
     if (!passenger || isReviewingDiscount) return;
     if (status === "REJECTED" && !discountReviewReason.trim()) {
@@ -521,6 +645,41 @@ export default function ViewUserModal({
     } finally {
       setIsReviewingDiscount(false);
     }
+  };
+
+  const requestDriverAction = () => {
+    if (!driver || !activeDriverAction) return;
+    if (activeDriverAction === "restrict" && !driverActionReason.trim()) {
+      alert("Please enter a restriction reason.");
+      return;
+    }
+    setConfirmModalConfig({
+      isOpen: true,
+      title: activeDriverAction === "restrict" ? "Restrict Driver Account" : "Lift Driver Restriction",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">
+            {activeDriverAction === "restrict" ? (
+              <>Are you sure you want to restrict driver <strong>{driver.name}</strong> from accepting rides?</>
+            ) : (
+              <>Are you sure you want to lift the restriction for driver <strong>{driver.name}</strong>? They will be able to go online and accept rides again.</>
+            )}
+          </p>
+          {activeDriverAction === "restrict" && driverActionReason.trim() && (
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+              <span className="text-slate-400 font-bold uppercase">Reason:</span>
+              <p className="text-slate-700 italic mt-0.5">"{driverActionReason.trim()}"</p>
+            </div>
+          )}
+        </div>
+      ),
+      confirmText: activeDriverAction === "restrict" ? "Yes, Restrict Driver" : "Yes, Lift Restriction",
+      variant: activeDriverAction === "restrict" ? "danger" : "warning",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleDriverAction();
+      },
+    });
   };
 
   const handleDriverAction = async () => {
@@ -610,6 +769,41 @@ export default function ViewUserModal({
     }
   };
 
+  const requestPassengerAction = () => {
+    if (!passenger || !activePassengerAction) return;
+    if (activePassengerAction === "restrict" && !passengerActionReason.trim()) {
+      alert("Please enter a restriction reason.");
+      return;
+    }
+    setConfirmModalConfig({
+      isOpen: true,
+      title: activePassengerAction === "restrict" ? "Restrict Passenger Account" : "Lift Passenger Restriction",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">
+            {activePassengerAction === "restrict" ? (
+              <>Are you sure you want to restrict passenger <strong>{passenger.name}</strong> from booking rides?</>
+            ) : (
+              <>Are you sure you want to lift the booking restriction for passenger <strong>{passenger.name}</strong>?</>
+            )}
+          </p>
+          {activePassengerAction === "restrict" && passengerActionReason.trim() && (
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+              <span className="text-slate-400 font-bold uppercase">Reason:</span>
+              <p className="text-slate-700 italic mt-0.5">"{passengerActionReason.trim()}"</p>
+            </div>
+          )}
+        </div>
+      ),
+      confirmText: activePassengerAction === "restrict" ? "Yes, Restrict Passenger" : "Yes, Lift Restriction",
+      variant: activePassengerAction === "restrict" ? "danger" : "warning",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handlePassengerAction();
+      },
+    });
+  };
+
   const handlePassengerAction = async () => {
     if (!passenger || !activePassengerAction) return;
     if (activePassengerAction === "restrict" && !passengerActionReason.trim()) {
@@ -655,6 +849,39 @@ export default function ViewUserModal({
       address: "Address",
     };
     return labels[fieldName] || fieldName.replace(/_/g, " ");
+  };
+
+  const requestReviewChangeRequest = (requestId: string, status: "APPROVED" | "REJECTED") => {
+    if (status === "REJECTED" && !changeRequestReason.trim()) {
+      alert("Please add a rejection reason.");
+      return;
+    }
+    setConfirmModalConfig({
+      isOpen: true,
+      title: status === "APPROVED" ? "Approve Profile Update" : "Reject Profile Update",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">
+            {status === "APPROVED"
+              ? "Are you sure you want to approve this driver profile modification? The changes will be applied directly to the driver database record."
+              : "Are you sure you want to reject this driver profile modification request?"
+            }
+          </p>
+          {status === "REJECTED" && changeRequestReason.trim() && (
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+              <span className="text-slate-400 font-bold uppercase">Rejection Reason:</span>
+              <p className="text-slate-700 italic mt-0.5">"{changeRequestReason.trim()}"</p>
+            </div>
+          )}
+        </div>
+      ),
+      confirmText: status === "APPROVED" ? "Yes, Approve Request" : "Yes, Reject Request",
+      variant: status === "APPROVED" ? "primary" : "danger",
+      onConfirm: async () => {
+        setConfirmModalConfig(null);
+        await handleReviewChangeRequest(requestId, status);
+      },
+    });
   };
 
   const handleReviewChangeRequest = async (requestId: string, status: "APPROVED" | "REJECTED") => {
@@ -721,18 +948,20 @@ export default function ViewUserModal({
                   <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">TODA Association</label>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <select
-                      value={selectedToda || driver.toda || "LHITC-TODA"}
+                      value={selectedToda || driver.toda || "CHOT-TODA"}
                       onChange={(e) => setSelectedToda(e.target.value)}
                       className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold bg-white text-[#000C7D] outline-hidden focus:border-blue-500 cursor-pointer flex-1"
                     >
-                      <option value="LHITC-TODA">LHITC-TODA</option>
-                      <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
+                      {driver.toda === "LHITC-TODA" && (
+                        <option value="LHITC-TODA" disabled>LHITC-TODA (Backed Out - Reassign)</option>
+                      )}
                       <option value="CHOT-TODA">CHOT-TODA</option>
+                      <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
                     </select>
                     {selectedToda && selectedToda !== driver.toda && (
                       <button
                         type="button"
-                        onClick={() => handleUpdateToda()}
+                        onClick={() => requestUpdateToda()}
                         disabled={isUpdatingToda}
                         className="px-2.5 py-1 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shrink-0 disabled:opacity-50"
                       >
@@ -751,7 +980,7 @@ export default function ViewUserModal({
                       {effectiveDocStatus !== "VERIFIED" ? (
                         <button
                           type="button"
-                          onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                          onClick={() => requestToggleDriverDocumentStatus("VERIFIED")}
                           disabled={isTogglingDocStatus}
                           className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
                           title="Dynamically activate driver status documents even if some documents are still missing"
@@ -764,7 +993,7 @@ export default function ViewUserModal({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                          onClick={() => requestToggleDriverDocumentStatus("PENDING")}
                           disabled={isTogglingDocStatus}
                           className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 rounded-md text-[10px] font-semibold transition-all cursor-pointer disabled:opacity-50"
                           title="Revert document status to PENDING"
@@ -834,7 +1063,7 @@ export default function ViewUserModal({
                     <button
                       type="button"
                       disabled={isTogglingDocStatus}
-                      onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                      onClick={() => requestToggleDriverDocumentStatus("PENDING")}
                       className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto disabled:opacity-60"
                       title="Revert document status back to PENDING"
                     >
@@ -849,7 +1078,7 @@ export default function ViewUserModal({
                     <button
                       type="button"
                       disabled={isTogglingDocStatus}
-                      onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                      onClick={() => requestToggleDriverDocumentStatus("VERIFIED")}
                       className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto disabled:opacity-60"
                       title="Activate driver documents to OK (VERIFIED) immediately"
                     >
@@ -938,7 +1167,7 @@ export default function ViewUserModal({
                             />
                             <button
                               type="button"
-                              onClick={() => handleReviewChangeRequest(request.id, "APPROVED")}
+                              onClick={() => requestReviewChangeRequest(request.id, "APPROVED")}
                               disabled={reviewingRequestId === request.id}
                               className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
                             >
@@ -946,7 +1175,7 @@ export default function ViewUserModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleReviewChangeRequest(request.id, "REJECTED")}
+                              onClick={() => requestReviewChangeRequest(request.id, "REJECTED")}
                               disabled={reviewingRequestId === request.id}
                               className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
                             >
@@ -960,7 +1189,7 @@ export default function ViewUserModal({
                 )}
               </div>
 
-              <form onSubmit={handleSaveDocuments} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-4">
+              <form onSubmit={requestSaveDocuments} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-4">
                 <h4 className="text-xs font-bold uppercase text-[#000C7D] tracking-wider border-b border-slate-200 pb-2">
                   Upload & Edit Document Fields
                 </h4>
@@ -999,7 +1228,7 @@ export default function ViewUserModal({
                     <button
                       type="button"
                       disabled={isTogglingDocStatus}
-                      onClick={() => handleToggleDriverDocumentStatus("VERIFIED")}
+                      onClick={() => requestToggleDriverDocumentStatus("VERIFIED")}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60"
                       title="Activate driver documents to OK (VERIFIED) so driver can go online immediately"
                     >
@@ -1012,7 +1241,7 @@ export default function ViewUserModal({
                     <button
                       type="button"
                       disabled={isTogglingDocStatus}
-                      onClick={() => handleToggleDriverDocumentStatus("PENDING")}
+                      onClick={() => requestToggleDriverDocumentStatus("PENDING")}
                       className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
                       title="Revert driver document status to PENDING"
                     >
@@ -1044,13 +1273,28 @@ export default function ViewUserModal({
                   <button
                     type="button"
                     disabled={isDeletingUser}
-                    onClick={async () => {
-                      setIsDeletingUser(true);
-                      try {
-                        await onDeleteDriver(driver);
-                      } finally {
-                        setIsDeletingUser(false);
-                      }
+                    onClick={() => {
+                      setConfirmModalConfig({
+                        isOpen: true,
+                        title: "Delete Driver Account",
+                        message: (
+                          <div className="space-y-2">
+                            <p className="text-slate-700">Are you sure you want to permanently delete driver <strong>{driver.name}</strong>?</p>
+                            <p className="text-xs text-rose-600 font-semibold">⚠️ This will permanently remove the driver account, vehicle, profile, and auth record.</p>
+                          </div>
+                        ),
+                        confirmText: "Yes, Delete Driver",
+                        variant: "danger",
+                        onConfirm: async () => {
+                          setConfirmModalConfig(null);
+                          setIsDeletingUser(true);
+                          try {
+                            await onDeleteDriver(driver);
+                          } finally {
+                            setIsDeletingUser(false);
+                          }
+                        }
+                      });
                     }}
                     className="px-4 py-2 bg-rose-600 text-white border border-rose-600 rounded-xl text-xs font-bold hover:bg-rose-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
@@ -1074,10 +1318,74 @@ export default function ViewUserModal({
                     )}
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => setActiveDriverAction(null)} className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer">Cancel</button>
-                      <button type="button" onClick={handleDriverAction} disabled={isExecutingDriverAction} className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60">
+                      <button type="button" onClick={requestDriverAction} disabled={isExecutingDriverAction} className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60">
                         {isExecutingDriverAction ? "Processing..." : "Confirm"}
                       </button>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-b border-slate-100 pb-5">
+                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-3">Ride History</h4>
+                {driverRideHistory.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No bookings found for this driver.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-150 bg-slate-50 text-slate-500 font-bold uppercase">
+                            <th className="p-2.5">Passenger</th>
+                            <th className="p-2.5">Route</th>
+                            <th className="p-2.5">Fare</th>
+                            <th className="p-2.5">Time</th>
+                            <th className="p-2.5">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                          {visibleDriverRideHistory.map((request) => (
+                            <tr key={request.id} className="hover:bg-slate-50/50">
+                              <td className="p-2.5 font-bold text-[#000C7D]">{request.passenger}</td>
+                              <td className="p-2.5">
+                                <p className="font-bold text-slate-700">{request.location}</p>
+                                <p className="text-[10px] text-slate-400 font-normal">{request.destination}</p>
+                              </td>
+                              <td className="p-2.5 font-bold text-[#000C7D]">₱{request.fare.toLocaleString()}</td>
+                              <td className="p-2.5 text-slate-500">{request.time}</td>
+                              <td className="p-2.5">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusBadge(request.status)}`}>
+                                  {request.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {driverRideHistory.length > 3 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-slate-400 font-semibold">Page {ridePage} of {driverRidePageCount}</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRidePage((current) => Math.max(1, current - 1))}
+                            disabled={ridePage === 1}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRidePage((current) => Math.min(driverRidePageCount, current + 1))}
+                            disabled={ridePage === driverRidePageCount}
+                            className="px-3 py-1.5 bg-[#000C7D] text-white rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1302,7 +1610,7 @@ export default function ViewUserModal({
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => handleReviewDiscount("VERIFIED")}
+                            onClick={() => requestReviewDiscount("VERIFIED")}
                             disabled={isReviewingDiscount}
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
                           >
@@ -1310,7 +1618,7 @@ export default function ViewUserModal({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleReviewDiscount("REJECTED")}
+                            onClick={() => requestReviewDiscount("REJECTED")}
                             disabled={isReviewingDiscount}
                             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold disabled:opacity-60 cursor-pointer shadow-sm"
                           >
@@ -1428,13 +1736,28 @@ export default function ViewUserModal({
                     <button
                       type="button"
                       disabled={isDeletingUser}
-                      onClick={async () => {
-                        setIsDeletingUser(true);
-                        try {
-                          await onDeletePassenger(passenger);
-                        } finally {
-                          setIsDeletingUser(false);
-                        }
+                      onClick={() => {
+                        setConfirmModalConfig({
+                          isOpen: true,
+                          title: "Delete Passenger Account",
+                          message: (
+                            <div className="space-y-2">
+                              <p className="text-slate-700">Are you sure you want to permanently delete passenger <strong>{passenger.name}</strong>?</p>
+                              <p className="text-xs text-rose-600 font-semibold">⚠️ This will permanently remove their booking history, saved places, profile, and auth record.</p>
+                            </div>
+                          ),
+                          confirmText: "Yes, Delete Passenger",
+                          variant: "danger",
+                          onConfirm: async () => {
+                            setConfirmModalConfig(null);
+                            setIsDeletingUser(true);
+                            try {
+                              await onDeletePassenger(passenger);
+                            } finally {
+                              setIsDeletingUser(false);
+                            }
+                          }
+                        });
                       }}
                       className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -1467,7 +1790,7 @@ export default function ViewUserModal({
                         </button>
                         <button
                           type="button"
-                          onClick={handlePassengerAction}
+                          onClick={requestPassengerAction}
                           disabled={isExecutingPassengerAction}
                           className="px-4 py-1.5 bg-[#000C7D] hover:bg-blue-900 text-white rounded-lg text-xs font-bold cursor-pointer disabled:opacity-60"
                         >
@@ -1534,6 +1857,20 @@ export default function ViewUserModal({
             </div>
           </div>
         </div>
+      )}
+
+      {confirmModalConfig && (
+        <ConfirmModal
+          isOpen={confirmModalConfig.isOpen}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          confirmText={confirmModalConfig.confirmText}
+          cancelText={confirmModalConfig.cancelText}
+          variant={confirmModalConfig.variant}
+          isLoading={confirmModalConfig.isLoading}
+          onConfirm={confirmModalConfig.onConfirm}
+          onClose={() => setConfirmModalConfig(null)}
+        />
       )}
     </div>
   );

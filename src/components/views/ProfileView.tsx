@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface AdminProfile {
   name: string;
@@ -46,6 +47,7 @@ export default function ProfileView({
   const [newProfileNameInput, setNewProfileNameInput] = useState("");
   const [profileActionError, setProfileActionError] = useState("");
   const [isSavingProfileAction, setIsSavingProfileAction] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const splitName = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -278,16 +280,7 @@ export default function ProfileView({
 
           {/* Logout Button */}
           <button
-            onClick={async () => {
-              if (confirm("Are you sure you want to log out?")) {
-                await supabase.auth.signOut();
-                setIsLoggedIn(false);
-                setActiveTab("dashboard");
-                if (setLoginEmail) setLoginEmail("");
-                if (setLoginPassword) setLoginPassword("");
-                if (setLoginError) setLoginError("");
-              }
-            }}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full bg-[#ef2b2b] hover:bg-red-600 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer text-center text-sm uppercase tracking-wider"
           >
             Logout
@@ -571,6 +564,24 @@ export default function ProfileView({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Logout from TodaGo Admin"
+        message="Are you sure you want to end your administrator session and log out?"
+        confirmText="Yes, Log Out"
+        variant="danger"
+        onConfirm={async () => {
+          setShowLogoutConfirm(false);
+          await supabase.auth.signOut();
+          setIsLoggedIn(false);
+          setActiveTab("dashboard");
+          if (setLoginEmail) setLoginEmail("");
+          if (setLoginPassword) setLoginPassword("");
+          if (setLoginError) setLoginError("");
+        }}
+        onClose={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { exportToExcel } from "../../lib/exportUtils";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface FareConfig {
   id: string;
@@ -77,6 +78,15 @@ export default function FareSettingsView() {
   const [oneWayChangeMessage, setOneWayChangeMessage] = useState("");
   const [roundTripChangeMessage, setRoundTripChangeMessage] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [pendingFareSave, setPendingFareSave] = useState<{
+    config: FareConfig;
+    message: string;
+    setSaving: (saving: boolean) => void;
+    setter: (config: FareConfig) => void;
+    setMessage: (msg: string) => void;
+    cacheKey: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchFareSettings();
@@ -119,6 +129,21 @@ export default function FareSettingsView() {
   const triggerToast = (message: string) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const requestSaveFare = (
+    config: FareConfig,
+    message: string,
+    setSaving: (saving: boolean) => void,
+    setter: (config: FareConfig) => void,
+    setMessage: (msg: string) => void,
+    cacheKey: string
+  ) => {
+    if (!message.trim()) {
+      triggerToast("Error: Please add a fare change message before saving.");
+      return;
+    }
+    setPendingFareSave({ config, message, setSaving, setter, setMessage, cacheKey });
   };
 
   const handleSaveFare = async (
@@ -281,7 +306,7 @@ export default function FareSettingsView() {
         </div>
 
         <button
-          onClick={handleExportCsv}
+          onClick={() => setShowExportConfirm(true)}
           title="Download CSV export of active fare settings"
           className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer whitespace-nowrap"
         >
@@ -410,7 +435,7 @@ export default function FareSettingsView() {
             <span className="text-[11px] font-semibold text-slate-500">Last updated: {oneWay.lastUpdated}</span>
             <button
               onClick={() =>
-                handleSaveFare(
+                requestSaveFare(
                   oneWay,
                   oneWayChangeMessage,
                   setSavingOneWay,
@@ -548,7 +573,7 @@ export default function FareSettingsView() {
             <span className="text-[11px] font-semibold text-slate-500">Last updated: {roundTrip.lastUpdated}</span>
             <button
               onClick={() =>
-                handleSaveFare(
+                requestSaveFare(
                   roundTrip,
                   roundTripChangeMessage,
                   setSavingRoundTrip,
@@ -572,6 +597,64 @@ export default function FareSettingsView() {
           </div>
         </div>
       </div>
+
+      {/* Export Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showExportConfirm}
+        title="Export Fare Configurations"
+        message={
+          <div className="space-y-2">
+            <p className="text-slate-700">
+              Do you want to export the active fare configuration matrix (One-Way and Special Trips) to CSV?
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1 text-slate-600">
+              <p>• <strong>One-Way Trip:</strong> ₱{oneWay.baseFare} base fare (first {oneWay.includedKm} km)</p>
+              <p>• <strong>Special Trip:</strong> ₱{roundTrip.baseFare} base fare (first {roundTrip.includedKm} km)</p>
+            </div>
+          </div>
+        }
+        confirmText="Confirm & Export"
+        variant="info"
+        onConfirm={() => {
+          setShowExportConfirm(false);
+          handleExportCsv();
+        }}
+        onClose={() => setShowExportConfirm(false)}
+      />
+
+      {/* Fare Save Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!pendingFareSave}
+        title={`Update ${pendingFareSave?.config.displayLabel || "Fare"} Matrix`}
+        message={
+          pendingFareSave ? (
+            <div className="space-y-3">
+              <p className="text-slate-700">
+                Are you sure you want to update the fare rules for <strong>{pendingFareSave.config.displayLabel}</strong>?
+              </p>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1 text-slate-700">
+                <p><span className="text-slate-400 font-bold uppercase">Base Fare:</span> ₱{pendingFareSave.config.baseFare} (first {pendingFareSave.config.includedKm} km)</p>
+                <p><span className="text-slate-400 font-bold uppercase">Succeeding Fare:</span> +₱{pendingFareSave.config.succeedingKmFare} per {pendingFareSave.config.succeedingKmInterval} km</p>
+                <p><span className="text-slate-400 font-bold uppercase">Discount:</span> {pendingFareSave.config.studentDiscount}% (Student/PWD/Senior)</p>
+                <p className="pt-1 text-slate-500 italic">"{pendingFareSave.message}"</p>
+              </div>
+              <p className="text-xs text-amber-600 font-medium">
+                ⚠️ This will immediately take effect for all new bookings and send broadcast notifications to drivers and passengers.
+              </p>
+            </div>
+          ) : null
+        }
+        confirmText="Yes, Save & Broadcast"
+        variant="primary"
+        isLoading={savingOneWay || savingRoundTrip}
+        onConfirm={async () => {
+          if (!pendingFareSave) return;
+          const { config, message, setSaving, setter, setMessage, cacheKey } = pendingFareSave;
+          setPendingFareSave(null);
+          await handleSaveFare(config, message, setSaving, setter, setMessage, cacheKey);
+        }}
+        onClose={() => setPendingFareSave(null)}
+      />
     </div>
   );
 }

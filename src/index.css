@@ -55,6 +55,10 @@ body {
 }
 
 /* Custom Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #7d96eb transparent;
+}
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

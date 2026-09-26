@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { FeedbackReport } from "../../types";
 import { supabase } from "../../lib/supabase";
 import { exportToExcel } from "../../lib/exportUtils";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface FeedbackViewProps {
   reports: FeedbackReport[];
@@ -17,6 +18,11 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
   const PAGE_SIZE = 6;
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notesById, setNotesById] = useState<Record<string, string>>({});
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [pendingResolveReport, setPendingResolveReport] = useState<{
+    report: FeedbackReport;
+    status: string;
+  } | null>(null);
 
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
@@ -279,7 +285,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
 
           {/* Export CSV Button */}
           <button
-            onClick={handleExportCsv}
+            onClick={() => setShowExportConfirm(true)}
             title="Download CSV export of feedback reports"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer whitespace-nowrap"
           >
@@ -391,7 +397,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
                     )}
                   </div>
                   <button
-                    onClick={() => updateReport(report, "RESOLVED")}
+                    onClick={() => setPendingResolveReport({ report, status: "RESOLVED" })}
                     disabled={savingId === report.id}
                     className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer disabled:opacity-60 transition-all shadow-xs flex items-center gap-1.5"
                   >
@@ -462,6 +468,65 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
           </div>
         )}
       </div>
+
+      {/* Export CSV Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showExportConfirm}
+        title="Export Feedback Reports"
+        message={
+          <div className="space-y-2">
+            <p className="text-slate-700">
+              Do you want to export <strong>{filteredReports.length}</strong> feedback reports to an Excel / CSV spreadsheet?
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1">
+              <p><span className="text-slate-400 font-bold uppercase">Type Filter:</span> <span className="font-semibold text-slate-800">{typeFilter}</span></p>
+              <p><span className="text-slate-400 font-bold uppercase">Status Filter:</span> <span className="font-semibold text-slate-800">{statusFilter}</span></p>
+            </div>
+          </div>
+        }
+        confirmText="Confirm & Export"
+        variant="info"
+        onConfirm={() => {
+          setShowExportConfirm(false);
+          handleExportCsv();
+        }}
+        onClose={() => setShowExportConfirm(false)}
+      />
+
+      {/* Resolve Feedback Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!pendingResolveReport}
+        title="Resolve Feedback & Send Notification"
+        message={
+          pendingResolveReport ? (
+            <div className="space-y-2">
+              <p className="text-slate-700">
+                Are you sure you want to mark this feedback as <strong className="text-emerald-600">RESOLVED</strong>?
+              </p>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1">
+                <p><span className="text-slate-400 font-bold uppercase">Report:</span> <span className="font-semibold text-slate-800">{pendingResolveReport.report.title}</span></p>
+                <p><span className="text-slate-400 font-bold uppercase">Submitted By:</span> <span className="font-semibold text-slate-800">{pendingResolveReport.report.reporterName || "Anonymous User"}</span></p>
+                {notesById[pendingResolveReport.report.id] && (
+                  <p><span className="text-slate-400 font-bold uppercase">Admin Note:</span> <span className="text-slate-600 italic">"{notesById[pendingResolveReport.report.id]}"</span></p>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">
+                An in-app notification will be sent to the reporting user with your resolution response.
+              </p>
+            </div>
+          ) : null
+        }
+        confirmText="Yes, Resolve & Notify"
+        variant="success"
+        isLoading={savingId === pendingResolveReport?.report.id}
+        onConfirm={async () => {
+          if (!pendingResolveReport) return;
+          const { report, status } = pendingResolveReport;
+          setPendingResolveReport(null);
+          await updateReport(report, status);
+        }}
+        onClose={() => setPendingResolveReport(null)}
+      />
     </div>
   );
 }

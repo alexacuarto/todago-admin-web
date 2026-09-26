@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { AdminAccount, Driver, DriverProfileChangeRequest, Passenger } from "../../types";
 import { getActivityBadgeClasses } from "../../lib/driverActivity";
 import { exportToExcel, formatMinutes } from "../../lib/exportUtils";
 import AdminManagementView from "./AdminManagementView";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface UsersViewProps {
   filteredDrivers: Driver[];
@@ -164,6 +165,8 @@ export default function UsersView({
   const [rejectingRequestId, setRejectingRequestId] = React.useState<string | null>(null);
   const [rejectReason, setRejectReason] = React.useState("");
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
 
   const pendingRequestsCount = React.useMemo(() => {
     return driverChangeRequests.filter((r) => r.status === "PENDING").length;
@@ -302,8 +305,7 @@ export default function UsersView({
     if (requestPage > requestPageCount) setRequestPage(requestPageCount);
   }, [driverPage, driverPageCount, passengerPage, passengerPageCount, requestPage, requestPageCount]);
 
-  const handleApprove = async (reqId: string) => {
-    if (!window.confirm("Approve this driver profile change request? The driver's details will be updated in the database and a notification will be sent.")) return;
+  const executeApprove = async (reqId: string) => {
     setIsProcessing(true);
     try {
       if (onReviewChangeRequest) {
@@ -312,6 +314,10 @@ export default function UsersView({
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleApprove = (reqId: string) => {
+    setPendingApproveId(reqId);
   };
 
   const handleConfirmReject = async () => {
@@ -671,7 +677,7 @@ export default function UsersView({
               </div>
 
               <button
-                onClick={handleExportExcel}
+                onClick={() => setShowExportConfirm(true)}
                 title={`Download Excel spreadsheet of filtered ${usersSubTab}`}
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer whitespace-nowrap"
               >
@@ -1001,6 +1007,45 @@ export default function UsersView({
           </div>
         </div>
       )}
+
+      {/* Export Excel Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showExportConfirm}
+        title={`Export ${usersSubTab === "drivers" ? "Drivers" : usersSubTab === "passengers" ? "Passengers" : "Change Requests"} Data`}
+        message={
+          <p className="text-slate-700">
+            Do you want to export the current <strong>{usersSubTab}</strong> records to an Excel / CSV spreadsheet?
+          </p>
+        }
+        confirmText="Confirm & Export"
+        variant="info"
+        onConfirm={() => {
+          setShowExportConfirm(false);
+          handleExportExcel();
+        }}
+        onClose={() => setShowExportConfirm(false)}
+      />
+
+      {/* Approve Change Request Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!pendingApproveId}
+        title="Approve Driver Change Request"
+        message={
+          <p className="text-slate-700">
+            Are you sure you want to approve this driver profile modification? The updated information will be saved directly into the database and a notification will be sent to the driver.
+          </p>
+        }
+        confirmText="Yes, Approve Request"
+        variant="primary"
+        isLoading={isProcessing}
+        onConfirm={async () => {
+          if (!pendingApproveId) return;
+          const id = pendingApproveId;
+          setPendingApproveId(null);
+          await executeApprove(id);
+        }}
+        onClose={() => setPendingApproveId(null)}
+      />
     </div>
   );
 }
