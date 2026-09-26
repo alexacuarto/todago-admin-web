@@ -8,9 +8,6 @@ interface HeaderProps {
   setActiveTab: (tab: "dashboard" | "ride-requests" | "earnings" | "users" | "feedback" | "profile" | "create-driver" | "fare-settings") => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
-  lastRefreshedAt?: string;
 }
 
 export default function Header({
@@ -18,9 +15,6 @@ export default function Header({
   setActiveTab,
   mobileMenuOpen,
   setMobileMenuOpen,
-  onRefresh,
-  isRefreshing = false,
-  lastRefreshedAt,
 }: HeaderProps) {
   return (
     <header className="bg-[#000C7D] text-white flex items-center justify-between px-6 py-3 shadow-md z-30 shrink-0">
@@ -40,32 +34,6 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-3">
-        {onRefresh && (
-          <button
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            title="Refresh database records"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer disabled:opacity-60 border border-white/10 shadow-xs"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className={isRefreshing ? "animate-spin text-sky-300" : "text-sky-300"}
-            >
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-            </svg>
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-            {lastRefreshedAt && (
-              <span className="hidden sm:inline text-[10px] font-normal text-sky-200/80 pl-1 border-l border-white/20">
-                {lastRefreshedAt}
-              </span>
-            )}
-          </button>
-        )}
 
         <button
           onClick={() => setActiveTab("profile")}

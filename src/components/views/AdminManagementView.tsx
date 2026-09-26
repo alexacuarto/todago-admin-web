@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { AdminAccount } from "../../types";
 import { exportToExcel } from "../../lib/exportUtils";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface AdminManagementViewProps {
   adminAccounts: AdminAccount[];
@@ -47,6 +48,37 @@ export default function AdminManagementView({
   });
   const [adminPage, setAdminPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode | string;
+    confirmText?: string;
+    variant?: "danger" | "warning" | "primary" | "info" | "success";
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+
+  const handleCreateAdminSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfirmConfig({
+      isOpen: true,
+      title: "Create Administrator Account",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">Are you sure you want to register a new administrator?</p>
+          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs space-y-1 text-slate-700">
+            <p><span className="text-slate-400 font-bold uppercase">Name:</span> {newAdminForm.name}</p>
+            <p><span className="text-slate-400 font-bold uppercase">Email:</span> {newAdminForm.email}</p>
+          </div>
+        </div>
+      ),
+      confirmText: "Yes, Create Admin",
+      variant: "primary",
+      onConfirm: async () => {
+        setConfirmConfig(null);
+        onCreateAdmin(e);
+      },
+    });
+  };
 
   const itemsPerPage = 5;
 
@@ -100,7 +132,7 @@ export default function AdminManagementView({
           </span>
         </div>
 
-        <form onSubmit={onCreateAdmin} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <form onSubmit={handleCreateAdminSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[11px] font-extrabold uppercase text-slate-500">Full Name</span>
             <input
@@ -210,7 +242,19 @@ export default function AdminManagementView({
 
             <button
               type="button"
-              onClick={handleExportExcel}
+              onClick={() => {
+                setConfirmConfig({
+                  isOpen: true,
+                  title: "Export Administrator Accounts",
+                  message: `Do you want to export ${filteredAdmins.length} administrator records to an Excel / CSV spreadsheet?`,
+                  confirmText: "Confirm & Export",
+                  variant: "info",
+                  onConfirm: () => {
+                    setConfirmConfig(null);
+                    handleExportExcel();
+                  },
+                });
+              }}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer whitespace-nowrap"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -437,15 +481,24 @@ export default function AdminManagementView({
                 {!viewingAdmin.isPrimaryAdmin && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Delete administrator account for ${viewingAdmin.name}? This will permanently remove their administrative credentials.`,
-                        )
-                      )
-                        return;
-                      const deleted = await onDeleteAdmin(viewingAdmin);
-                      if (deleted) setViewingAdmin(null);
+                    onClick={() => {
+                      setConfirmConfig({
+                        isOpen: true,
+                        title: "Delete Administrator Account",
+                        message: (
+                          <div className="space-y-2">
+                            <p className="text-slate-700">Are you sure you want to permanently delete administrator <strong>{viewingAdmin.name}</strong> ({viewingAdmin.email})?</p>
+                            <p className="text-xs text-rose-600 font-semibold">⚠️ Their administrative credentials will be permanently removed.</p>
+                          </div>
+                        ),
+                        confirmText: "Yes, Delete Admin",
+                        variant: "danger",
+                        onConfirm: async () => {
+                          setConfirmConfig(null);
+                          const deleted = await onDeleteAdmin(viewingAdmin);
+                          if (deleted) setViewingAdmin(null);
+                        },
+                      });
                     }}
                     disabled={activeAdminActionId === viewingAdmin.id}
                     className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100 cursor-pointer disabled:opacity-50"
@@ -475,6 +528,18 @@ export default function AdminManagementView({
             </form>
           </div>
         </div>
+      )}
+
+      {confirmConfig && (
+        <ConfirmModal
+          isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={confirmConfig.onConfirm}
+          onClose={() => setConfirmConfig(null)}
+        />
       )}
     </div>
   );

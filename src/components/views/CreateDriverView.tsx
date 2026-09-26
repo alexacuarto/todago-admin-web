@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface CreateDriverViewProps {
   formData: any;
@@ -16,11 +17,17 @@ export default function CreateDriverView({
   isCreatingDriver = false,
 }: CreateDriverViewProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowConfirmModal(true);
+  };
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 flex flex-col gap-6 animate-in fade-in duration-200">
-        <form onSubmit={onSubmit} className="flex flex-col gap-6">
+        <form onSubmit={handleFormSubmit} className="flex flex-col gap-6">
           {/* Header */}
           <div className="text-left">
             <h4 className="text-md font-bold text-[#000C7D] tracking-wide uppercase">Driver Information</h4>
@@ -193,9 +200,8 @@ export default function CreateDriverView({
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, toda: e.target.value }))}
                   className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl text-sm font-semibold bg-white outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-[#000C7D] cursor-pointer appearance-none"
                 >
-                  <option value="LHITC-TODA">LHITC-TODA</option>
-                  <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
                   <option value="CHOT-TODA">CHOT-TODA</option>
+                  <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
                 </select>
                 <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -433,6 +439,34 @@ export default function CreateDriverView({
           </div>
         </form>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="Create Driver Account"
+        message={
+          <div className="space-y-2">
+            <p className="text-slate-700">
+              Are you sure you want to register <strong>{formData.name || "this driver"}</strong>?
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1">
+              <p><span className="text-slate-400 font-bold uppercase">TODA:</span> <span className="font-semibold text-slate-800">{formData.toda || "CHOT-TODA"}</span></p>
+              <p><span className="text-slate-400 font-bold uppercase">Email:</span> <span className="font-semibold text-slate-800">{formData.email}</span></p>
+              <p><span className="text-slate-400 font-bold uppercase">Phone:</span> <span className="font-semibold text-slate-800">{formData.phone}</span></p>
+            </div>
+            <p className="text-xs text-slate-500">
+              The driver will immediately be able to log in to the TodaGo Driver application with their credentials.
+            </p>
+          </div>
+        }
+        confirmText="Yes, Create Driver"
+        variant="primary"
+        isLoading={isCreatingDriver}
+        onConfirm={async () => {
+          setShowConfirmModal(false);
+          onSubmit({ preventDefault: () => {} } as React.FormEvent);
+        }}
+        onClose={() => setShowConfirmModal(false)}
+      />
     </div>
   );
 }

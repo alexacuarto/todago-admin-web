@@ -87,9 +87,8 @@ export default function EditDriverModal({
                 onChange={(e) => setEditFormData((prev: any) => ({ ...prev, toda: e.target.value }))}
                 className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold bg-white outline-hidden focus:border-blue-500 transition-all cursor-pointer text-[#000C7D]"
               >
-                <option value="LHITC-TODA">LHITC-TODA</option>
-                <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
                 <option value="CHOT-TODA">CHOT-TODA</option>
+                <option value="BYPASS ILAYANG BAGUIO-TODA">BYPASS ILAYANG BAGUIO-TODA</option>
               </select>
             </div>
             <div className="flex flex-col gap-1">

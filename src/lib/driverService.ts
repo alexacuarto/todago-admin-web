@@ -196,7 +196,7 @@ export async function createDriverAccount(
       return { success: false, error: 'User ID was not generated or retrieved.' };
     }
 
-    const finalToda = todaAssociation?.trim() || 'LHITC-TODA';
+    const finalToda = todaAssociation?.trim() || 'CHOT-TODA';
 
     // 4. Guarantee toda_association is set directly on drivers table
     console.log("Ensuring toda_association is saved on drivers table:", finalToda);
@@ -282,7 +282,7 @@ export async function updateDriverTodaAssociation(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const cleanToda = todaAssociation.trim();
-    if (!['LHITC-TODA', 'BYPASS ILAYANG BAGUIO-TODA', 'CHOT-TODA'].includes(cleanToda)) {
+    if (!['BYPASS ILAYANG BAGUIO-TODA', 'CHOT-TODA'].includes(cleanToda)) {
       return { success: false, error: 'Invalid TODA association.' };
     }
 

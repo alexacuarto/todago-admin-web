@@ -1,10 +1,11 @@
 export const OFFICIAL_TODAS = [
   "BYPASS ILAYANG BAGUIO-TODA",
   "CHOT-TODA",
-  "LHITC-TODA",
 ] as const;
 
 export type OfficialToda = (typeof OFFICIAL_TODAS)[number];
+
+export const DEFAULT_TODA: OfficialToda = "CHOT-TODA";
 
 export function normalizeToda(val: string | null | undefined): OfficialToda | null {
   if (!val) return null;
@@ -15,8 +16,6 @@ export function normalizeToda(val: string | null | undefined): OfficialToda | nu
   if (clean.includes("CHOT")) {
     return "CHOT-TODA";
   }
-  if (clean.includes("LHITC")) {
-    return "LHITC-TODA";
-  }
   return null;
 }
+

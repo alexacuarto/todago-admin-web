@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Driver, RideRequest } from "../../types";
 import { OFFICIAL_TODAS, normalizeToda, OfficialToda } from "../../lib/todaConstants";
 import { exportToExcel } from "../../lib/exportUtils";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface EarningsViewProps {
   drivers: Driver[];
@@ -29,7 +30,7 @@ export default function EarningsView({
         const resolvedDriver = drivers.find(
           (d) => d.id === request.driverId || d.profileId === request.driverId || (request.driver && d.name === request.driver)
         );
-        const toda = normalizeToda(request.toda || resolvedDriver?.toda) || "LHITC-TODA";
+        const toda = normalizeToda(request.toda || resolvedDriver?.toda) || "CHOT-TODA";
         return toda === earningsTodaFilter;
       });
 
@@ -39,14 +40,13 @@ export default function EarningsView({
   const baseTodaTotals: Record<OfficialToda, { toda: OfficialToda; rides: number; total: number }> = {
     "BYPASS ILAYANG BAGUIO-TODA": { toda: "BYPASS ILAYANG BAGUIO-TODA", rides: 0, total: 0 },
     "CHOT-TODA": { toda: "CHOT-TODA", rides: 0, total: 0 },
-    "LHITC-TODA": { toda: "LHITC-TODA", rides: 0, total: 0 },
   };
 
   completedRequests.forEach((request) => {
     const resolvedDriver = drivers.find(
       (d) => d.id === request.driverId || d.profileId === request.driverId || (request.driver && d.name === request.driver)
     );
-    const toda = normalizeToda(request.toda || resolvedDriver?.toda) || "LHITC-TODA";
+    const toda = normalizeToda(request.toda || resolvedDriver?.toda);
     if (toda && baseTodaTotals[toda]) {
       baseTodaTotals[toda].rides += 1;
       baseTodaTotals[toda].total += request.fare || 0;
@@ -60,6 +60,7 @@ export default function EarningsView({
 
   const [sortOption, setSortOption] = useState<"az" | "za" | "highest" | "lowest" | "most-rides">("az");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
   const PAGE_SIZE = 7;
 
   const driverRows = useMemo(() => {
@@ -79,7 +80,7 @@ export default function EarningsView({
         const driverName = (request.driver && request.driver !== "Not provided" && request.driver !== "Unassigned" && request.driver !== "Assigned Driver")
           ? request.driver
           : resolvedDriver?.name || (request.driverId ? `Driver (${request.driverId.slice(0, 6)})` : "Unassigned");
-        const toda = normalizeToda(request.toda || resolvedDriver?.toda) || "LHITC-TODA";
+        const toda = normalizeToda(request.toda || resolvedDriver?.toda) || "CHOT-TODA";
 
         const key = request.driverId || driverName;
         groups[key] ??= {
@@ -235,7 +236,7 @@ export default function EarningsView({
             </div>
 
             <button
-              onClick={handleExportCsv}
+              onClick={() => setShowExportConfirm(true)}
               title="Download CSV export of earnings breakdown"
               className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer whitespace-nowrap"
             >
@@ -382,6 +383,30 @@ export default function EarningsView({
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showExportConfirm}
+        title="Export Earnings Data"
+        message={
+          <div className="space-y-2">
+            <p className="text-slate-700">
+              Do you want to export earnings records for <strong>{earningsTodaFilter === "All" ? "All TODAs" : earningsTodaFilter}</strong> to an Excel / CSV spreadsheet?
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1">
+              <p><span className="text-slate-400 font-bold uppercase">Drivers Included:</span> <span className="font-semibold text-slate-800">{sortedDriverRows.length}</span></p>
+              <p><span className="text-slate-400 font-bold uppercase">Completed Rides:</span> <span className="font-semibold text-slate-800">{totalRides}</span></p>
+              <p><span className="text-slate-400 font-bold uppercase">Total Earnings:</span> <span className="font-semibold text-emerald-600">{money(total)}</span></p>
+            </div>
+          </div>
+        }
+        confirmText="Confirm & Export"
+        variant="info"
+        onConfirm={() => {
+          setShowExportConfirm(false);
+          handleExportCsv();
+        }}
+        onClose={() => setShowExportConfirm(false)}
+      />
     </div>
   );
 }

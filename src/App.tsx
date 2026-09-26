@@ -28,6 +28,7 @@ import AddRequestModal from "./components/modals/AddRequestModal";
 import ViewRequestModal from "./components/modals/ViewRequestModal";
 import ViewUserModal from "./components/modals/ViewUserModal";
 import StatBreakdownModal from "./components/modals/StatBreakdownModal";
+import { ConfirmModal, ConfirmVariant } from "./components/modals/ConfirmModal";
 
 export default function App() {
   // Authentication & Navigation State
@@ -36,12 +37,19 @@ export default function App() {
   const [, setIsAuthorized] = useState<boolean | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>("");
   const [errorState, setErrorState] = useState<string | null>(null);
+  const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode | string;
+    confirmText?: string;
+    variant?: ConfirmVariant;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const fetchInFlight = useRef(false);
   const refreshQueued = useRef(false);
   const sessionUserId = useRef<string | null>(null);
+  const hasInitialLoaded = useRef(false);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -90,7 +98,7 @@ export default function App() {
     phone: "",
     password: "",
     plateNumber: "",
-    toda: "LHITC-TODA",
+    toda: "CHOT-TODA",
     status: "Active" as "Active" | "Inactive",
     licenseFrontImage: null as File | null,
     licenseFrontName: "",
@@ -158,10 +166,8 @@ export default function App() {
     const requestedUserId = sessionUserId.current;
     if (!requestedUserId) return;
     fetchInFlight.current = true;
-    if (isInitial) {
+    if (isInitial && !hasInitialLoaded.current) {
       setIsInitialLoading(true);
-    } else {
-      setIsRefreshing(true);
     }
     setErrorState(null);
     try {
@@ -541,7 +547,7 @@ export default function App() {
         if (driverObj || b.driver_id) {
           toda = (driverObj?.toda_association && driverObj.toda_association.trim() && driverObj.toda_association !== "Not provided")
             ? driverObj.toda_association.trim()
-            : "LHITC-TODA";
+            : "CHOT-TODA";
         }
 
         let uiStatus: RideRequest["status"] = "Pending";
@@ -752,13 +758,11 @@ export default function App() {
 
       setViewingRequest(current => current ? mappedRequests.find(row => row.id === current.id) ?? null : null);
       setViewingUser(current => current ? [...mappedDrivers, ...mappedPassengers].find(row => row.id === current.id) ?? null : null);
-      setLastRefreshedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
       console.error("[Supabase Error] Error fetching live data:", err);
       if (sessionUserId.current === requestedUserId) setErrorState(err.message || "Failed to load database records.");
     } finally {
       setIsInitialLoading(false);
-      setIsRefreshing(false);
       fetchInFlight.current = false;
       if (refreshQueued.current) {
         refreshQueued.current = false;
@@ -771,6 +775,7 @@ export default function App() {
   const checkSessionAndRole = async (session: any) => {
     sessionUserId.current = session?.user?.id ?? null;
     if (!session) {
+      hasInitialLoaded.current = false;
       setDrivers([]);
       setPassengers([]);
       setRideRequests([]);
@@ -816,7 +821,10 @@ export default function App() {
         });
         setIsAuthorized(true);
         setIsLoggedIn(true);
-        fetchData(true);
+        if (!hasInitialLoaded.current) {
+          hasInitialLoaded.current = true;
+          void fetchData(true);
+        }
       } else {
         await supabase.auth.signOut();
         setIsAuthorized(false);
@@ -839,9 +847,14 @@ export default function App() {
       checkSessionAndRole(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Supabase queries must run outside the synchronous auth callback.
-      setTimeout(() => { void checkSessionAndRole(session); }, 0);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setTimeout(() => { void checkSessionAndRole(null); }, 0);
+      } else if (event === "SIGNED_IN") {
+        if (sessionUserId.current !== session.user.id || !hasInitialLoaded.current) {
+          setTimeout(() => { void checkSessionAndRole(session); }, 0);
+        }
+      }
     });
 
     return () => {
@@ -849,30 +862,7 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => { void fetchData(); }, 600);
-    };
-    const channel = supabase.channel("admin-database-sync");
-    for (const table of ["bookings", "profiles", "passengers", "drivers", "vehicles", "booking_discount_requests", "driver_profile_change_requests", "reports"]) {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
-    }
-    channel.subscribe();
-    const poll = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 30000);
-    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
-    window.addEventListener("online", refresh);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(poll);
-      window.removeEventListener("online", refresh);
-      document.removeEventListener("visibilitychange", onVisible);
-      void supabase.removeChannel(channel);
-    };
-  }, [isLoggedIn]);
+
 
   // Derived calculations
   const onlineDriversCount = drivers.filter(d => d.isOnline).length;
@@ -951,7 +941,7 @@ export default function App() {
         phone: "",
         password: "",
         plateNumber: "",
-        toda: "LHITC-TODA",
+        toda: "CHOT-TODA",
         status: "Active",
         licenseFrontImage: null,
         licenseFrontName: "",
@@ -1377,9 +1367,7 @@ export default function App() {
     }
   };
 
-  const handleDeleteRideRequest = async (id: string) => {
-    if (!window.confirm("Delete this ride request from the database?")) return;
-
+  const executeDeleteRideRequest = async (id: string) => {
     await deleteRows("booking_discount_requests", "booking_id", id);
     await deleteRows("booking_status_history", "booking_id", id);
     await deleteRows("driver_locations", "booking_id", id);
@@ -1400,9 +1388,26 @@ export default function App() {
     fetchData();
   };
 
-  const handleDeleteDriver = async (driver: Driver) => {
-    if (!window.confirm(`Delete ${driver.name} from the database? Related active assignments will be detached.`)) return;
+  const handleDeleteRideRequest = (id: string) => {
+    setDeleteConfirmConfig({
+      isOpen: true,
+      title: "Delete Ride Request",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">Are you sure you want to delete this ride request?</p>
+          <p className="text-xs text-rose-600 font-semibold">⚠️ All related booking history, tracking, ratings, and notification records will be permanently removed.</p>
+        </div>
+      ),
+      confirmText: "Yes, Delete Ride",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeleteConfirmConfig(null);
+        await executeDeleteRideRequest(id);
+      },
+    });
+  };
 
+  const executeDeleteDriver = async (driver: Driver) => {
     try {
       console.log(`[Supabase Query] Deleting driver ID ${driver.id}...`);
       // 1. Attempt server-side atomic deletion RPC
@@ -1431,7 +1436,7 @@ export default function App() {
 
         if (driver.profileId) {
           await deleteRows("notifications", "recipient_id", driver.profileId);
-          await deleteRows("reports", "reporter_id", driver.profileId);
+          await deleteRows("push_tokens", "profile_id", driver.profileId);
           await deleteRows("reports", "reporter_profile_id", driver.profileId);
           await deleteRows("profiles", "id", driver.profileId);
         }
@@ -1446,7 +1451,7 @@ export default function App() {
       setShowViewUserModal(false);
       setViewingUser(null);
       setViewingUserType(null);
-      alert(`Driver ${driver.name} has been successfully deleted.`);
+      alert(`Driver ${driver.name} and authentication account have been successfully deleted.`);
       fetchData(false);
     } catch (err: any) {
       console.error("[Supabase Error] Failed to delete driver:", err);
@@ -1454,9 +1459,31 @@ export default function App() {
     }
   };
 
-  const handleDeletePassenger = async (passenger: Passenger) => {
-    if (!window.confirm(`Delete ${passenger.name} and their ride records from the database?`)) return;
+  const handleDeleteDriver = async (driver: Driver) => {
+    if (driver.email === "achuchu423@gmail.com" || driver.email === "admin@todago.com") {
+      alert("Cannot delete main administrator account.");
+      return;
+    }
 
+    setDeleteConfirmConfig({
+      isOpen: true,
+      title: "Delete Driver Account",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">Are you sure you want to permanently delete driver <strong>{driver.name}</strong>?</p>
+          <p className="text-xs text-rose-600 font-semibold">⚠️ All related vehicles, driver sessions, ratings, profile, and authentication records will be permanently removed.</p>
+        </div>
+      ),
+      confirmText: "Yes, Delete Driver",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeleteConfirmConfig(null);
+        await executeDeleteDriver(driver);
+      },
+    });
+  };
+
+  const executeDeletePassenger = async (passenger: Passenger) => {
     try {
       console.log(`[Supabase Query] Deleting passenger ID ${passenger.id}...`);
       // 1. Attempt server-side atomic deletion RPC
@@ -1483,6 +1510,7 @@ export default function App() {
         await deleteRows("passenger_locations", "passenger_id", passenger.id);
         await deleteRows("reports", "passenger_id", passenger.id);
         await deleteRows("reports", "reporter_passenger_id", passenger.id);
+        await deleteRows("saved_places", "passenger_id", passenger.id);
         await deleteRows("bookings", "passenger_id", passenger.id);
 
         const { error: passengerError } = await supabase.from("passengers").delete().eq("id", passenger.id);
@@ -1494,7 +1522,7 @@ export default function App() {
 
         if (passenger.profileId) {
           await deleteRows("notifications", "recipient_id", passenger.profileId);
-          await deleteRows("reports", "reporter_id", passenger.profileId);
+          await deleteRows("push_tokens", "profile_id", passenger.profileId);
           await deleteRows("reports", "reporter_profile_id", passenger.profileId);
           await deleteRows("profiles", "id", passenger.profileId);
         }
@@ -1515,6 +1543,30 @@ export default function App() {
       console.error("[Supabase Error] Failed to delete passenger:", err);
       alert(`Failed to delete passenger: ${err?.message || err}`);
     }
+  };
+
+  const handleDeletePassenger = async (passenger: Passenger) => {
+    if (passenger.email === "achuchu423@gmail.com" || passenger.email === "admin@todago.com") {
+      alert("Cannot delete main administrator account.");
+      return;
+    }
+
+    setDeleteConfirmConfig({
+      isOpen: true,
+      title: "Delete Passenger Account",
+      message: (
+        <div className="space-y-2">
+          <p className="text-slate-700">Are you sure you want to permanently delete passenger <strong>{passenger.name}</strong>?</p>
+          <p className="text-xs text-rose-600 font-semibold">⚠️ All related ride records, saved places, profile, and authentication records will be permanently removed.</p>
+        </div>
+      ),
+      confirmText: "Yes, Delete Passenger",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeleteConfirmConfig(null);
+        await executeDeletePassenger(passenger);
+      },
+    });
   };
 
   const handleAddRequest = async (e: React.FormEvent) => {
@@ -1771,9 +1823,6 @@ export default function App() {
         setActiveTab={setActiveTab}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
-        onRefresh={() => fetchData(false)}
-        isRefreshing={isRefreshing}
-        lastRefreshedAt={lastRefreshedAt}
       />
 
       <div className="flex-1 min-h-0 flex relative overflow-hidden">
@@ -1805,8 +1854,7 @@ export default function App() {
 
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center p-12 text-slate-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-3 border-indigo-600 border-t-transparent mb-3"></div>
-              <p className="text-xs font-bold uppercase tracking-wider">Syncing Supabase Database...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-3 border-indigo-600 border-t-transparent"></div>
             </div>
           ) : (
             <>
@@ -1966,6 +2014,18 @@ export default function App() {
         rideRequests={rideRequests}
         earningsToday={earningsToday}
       />
+
+      {deleteConfirmConfig && (
+        <ConfirmModal
+          isOpen={deleteConfirmConfig.isOpen}
+          title={deleteConfirmConfig.title}
+          message={deleteConfirmConfig.message}
+          confirmText={deleteConfirmConfig.confirmText}
+          variant={deleteConfirmConfig.variant}
+          onConfirm={deleteConfirmConfig.onConfirm}
+          onClose={() => setDeleteConfirmConfig(null)}
+        />
+      )}
     </div>
   );
 }
