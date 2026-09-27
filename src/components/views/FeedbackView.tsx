@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { FeedbackReport } from "../../types";
 import { supabase } from "../../lib/supabase";
 import { exportToExcel } from "../../lib/exportUtils";
+import { formatDateTime } from "../../lib/dateUtils";
 import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface FeedbackViewProps {
@@ -203,8 +204,8 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
         report.route || "",
         report.status || "PENDING",
         (notesById[report.id] ?? report.adminNotes ?? "").trim(),
-        report.createdAt ? new Date(report.createdAt).toLocaleString() : "",
-        report.updatedAt ? new Date(report.updatedAt).toLocaleString() : "",
+        report.createdAt ? formatDateTime(report.createdAt) : "",
+        report.updatedAt ? formatDateTime(report.updatedAt) : "",
       ];
     });
 
@@ -314,7 +315,7 @@ export default function FeedbackView({ reports, onRefresh }: FeedbackViewProps) 
               <div className="col-span-12 md:col-span-4">
                 <p className="font-extrabold text-slate-800">{report.title}</p>
                 <p className="text-xs font-semibold text-slate-500 mt-1">
-                  {report.category || "General"} · {new Date(report.createdAt).toLocaleString()}
+                  {report.category || "General"} · {formatDateTime(report.createdAt)}
                 </p>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                   {report.message}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { AdminAccount, Driver, DriverProfileChangeRequest, Passenger } from "../../types";
 import { getActivityBadgeClasses } from "../../lib/driverActivity";
 import { exportToExcel, formatMinutes } from "../../lib/exportUtils";
+import { formatDateTime } from "../../lib/dateUtils";
 import AdminManagementView from "./AdminManagementView";
 import { ConfirmModal } from "../modals/ConfirmModal";
 
@@ -428,7 +429,7 @@ export default function UsersView({
           r.requestedValue,
           r.status,
           r.rejectionReason || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+          r.createdAt ? formatDateTime(r.createdAt) : "",
         ];
       });
       exportToExcel(`todago_driver_change_requests_${dateStr}`, headers, rows);
@@ -893,7 +894,7 @@ export default function UsersView({
                             </span>
                           </td>
                           <td className="py-4 px-3 text-xs text-slate-500">
-                            {req.createdAt ? new Date(req.createdAt).toLocaleString() : "N/A"}
+                            {req.createdAt ? formatDateTime(req.createdAt) : "N/A"}
                           </td>
                           <td className="py-4 px-3">
                             <div className="flex flex-col gap-1">

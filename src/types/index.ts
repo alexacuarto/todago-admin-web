@@ -137,6 +137,8 @@ export interface RideRequest {
   fare: number;
   time: string;
   requestedAt?: string;
+  completedAt?: string | null;
+  completed_at?: string | null;
   tripType?: string | null;
   toda: string;
   cancelled_by?: string | null;

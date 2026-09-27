@@ -654,6 +654,8 @@ export default function App() {
             : [],
           time: b.created_at ? formatDateTime(b.created_at) : "N/A",
           requestedAt: b.created_at || undefined,
+          completedAt: b.completed_at || null,
+          completed_at: b.completed_at || null,
           regularPassengerCount: b.passenger_qty && (!b.discount_passenger_type || b.discount_passenger_type === "Regular") ? Number(b.passenger_qty) : 0,
           studentPassengerCount: b.discount_passenger_type === "Student" ? Number(b.passenger_qty || 0) : 0,
           pwdPassengerCount: b.discount_passenger_type === "PWD" ? Number(b.passenger_qty || 0) : 0,

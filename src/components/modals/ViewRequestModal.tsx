@@ -1,5 +1,5 @@
 import { RideRequest } from "../../types";
-import { formatDateTime } from "../../lib/dateUtils";
+import { formatDateTime, formatTripDuration } from "../../lib/dateUtils";
 
 interface ViewRequestModalProps {
   isOpen: boolean;
@@ -23,6 +23,9 @@ export default function ViewRequestModal({
     (viewingRequest.totalStops != null && viewingRequest.totalStops > 1);
   const isRoundTrip = !isSpecialTrip && (viewingRequest.tripType?.toLowerCase().includes("round") ?? false);
   const stopsCount = viewingRequest.stops?.length || viewingRequest.totalStops || (isSpecialTrip ? 1 : 1);
+  const completedTimestamp = viewingRequest.completedAt || viewingRequest.completed_at;
+  const bookingTimestamp = viewingRequest.requestedAt || viewingRequest.time;
+  const tripDuration = completedTimestamp ? formatTripDuration(bookingTimestamp, completedTimestamp) : null;
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all animate-in fade-in duration-200">
@@ -180,7 +183,26 @@ export default function ViewRequestModal({
             </div>
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Booking Time</p>
-              <p className="font-bold text-slate-500 mt-0.5">{formatDateTime(viewingRequest.requestedAt || viewingRequest.time)}</p>
+              <p className="font-bold text-slate-500 mt-0.5">{formatDateTime(bookingTimestamp)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Finished Time</p>
+              {completedTimestamp ? (
+                <div>
+                  <p className="font-bold text-emerald-600 mt-0.5">{formatDateTime(completedTimestamp)}</p>
+                  {tripDuration && (
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      ⏱️ Duration: {tripDuration}
+                    </p>
+                  )}
+                </div>
+              ) : viewingRequest.status === "Cancelled" ? (
+                <p className="font-medium text-rose-500 text-xs mt-1">Trip Cancelled</p>
+              ) : (
+                <p className="font-medium text-slate-400 text-xs mt-1 italic">
+                  {viewingRequest.status === "In Transit" ? "Trip In Progress" : "Not Finished Yet"}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">TODA Association</p>

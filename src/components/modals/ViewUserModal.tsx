@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Driver, DriverProfileChangeRequest, Passenger, RideRequest } from "../../types";
 import { supabase } from "../../lib/supabase";
+import { formatDateTime } from "../../lib/dateUtils";
 import { ConfirmModal, ConfirmVariant } from "./ConfirmModal";
 
 interface ViewUserModalProps {
@@ -1026,7 +1027,7 @@ export default function ViewUserModal({
                 />
                 <Field
                   label="Last Completed Ride"
-                  value={driver.lastCompletedRideAt ? new Date(driver.lastCompletedRideAt).toLocaleString() : "Never"}
+                  value={driver.lastCompletedRideAt ? formatDateTime(driver.lastCompletedRideAt) : "Never"}
                 />
                 <Field
                   label="Account Created"
@@ -1453,7 +1454,7 @@ export default function ViewUserModal({
                         passenger.bookingRestrictionUntil ? (
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={isPassengerRestricted ? "text-rose-600 font-bold" : "text-slate-600 font-medium"}>
-                              {new Date(passenger.bookingRestrictionUntil).toLocaleString()}
+                              {formatDateTime(passenger.bookingRestrictionUntil)}
                             </span>
                             {isPassengerRestricted && (
                               <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-md text-[10px] font-extrabold">
