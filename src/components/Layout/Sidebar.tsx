@@ -71,8 +71,8 @@ export default function Sidebar({
         : activeTab === "users" && usersSubTab === subTab;
 
     return `w-full text-left pl-14 pr-4 py-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-between ${isSubActive
-        ? "text-[#000C7D] bg-white/70"
-        : "text-slate-600 hover:text-[#000C7D] hover:bg-white/40"
+      ? "text-[#000C7D] bg-white/70"
+      : "text-slate-600 hover:text-[#000C7D] hover:bg-white/40"
       }`;
   };
 
@@ -148,11 +148,10 @@ export default function Sidebar({
 
           <button onClick={() => goToUsers("drivers")} className={getTabClass("drivers")}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <circle cx="12" cy="12" r="2.5" />
-              <path d="M12 3v6.5" />
-              <path d="M4.2 16.5l5.8-3.5" />
-              <path d="M19.8 16.5l-5.8-3.5" />
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
             </svg>
             <span className="flex-1">Drivers</span>
             {pendingDriversCount > 0 && (

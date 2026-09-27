@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { exportToExcel } from "../../lib/exportUtils";
+import { formatDateTime } from "../../lib/dateUtils";
 import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface FareConfig {
@@ -63,8 +64,8 @@ function mapDbRow(row: any): FareConfig {
     pwdDiscount: rate("pwd_discount", true),
     seniorCitizenDiscount: rate("senior_citizen_discount", true),
     lastUpdated: row.updated_at
-      ? new Date(row.updated_at).toLocaleString()
-      : new Date().toLocaleString(),
+      ? formatDateTime(row.updated_at)
+      : formatDateTime(new Date().toISOString()),
   };
 }
 

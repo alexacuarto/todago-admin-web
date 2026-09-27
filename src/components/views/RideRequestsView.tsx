@@ -69,9 +69,10 @@ export default function RideRequestsView({
       "Dropoff Address",
       "Fare (PHP)",
       "Status",
-      "Time",
-      "Requested At",
+      "Booking Time",
+      "Finished Time",
       "Cancelled By",
+      "Cancelled At",
       "Cancel Reason",
     ];
     const rows = sortedRequests.map((r) => {
@@ -94,8 +95,9 @@ export default function RideRequestsView({
         `₱${r.fare.toLocaleString()}`,
         r.status,
         formatDateTime(r.requestedAt || r.time),
-        r.requestedAt ? formatDateTime(r.requestedAt) : "",
+        r.completedAt ? formatDateTime(r.completedAt) : "",
         r.cancelled_by || "",
+        r.cancelled_at ? formatDateTime(r.cancelled_at) : "",
         r.cancel_reason || "",
       ];
     });
