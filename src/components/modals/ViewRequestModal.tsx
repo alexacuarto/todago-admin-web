@@ -12,7 +12,7 @@ export default function ViewRequestModal({
   isOpen,
   onClose,
   viewingRequest,
-  onDeleteRequest: _onDeleteRequest,
+  onDeleteRequest,
 }: ViewRequestModalProps) {
   if (!isOpen || !viewingRequest) return null;
 
@@ -81,22 +81,20 @@ export default function ViewRequestModal({
                     return (
                       <div
                         key={idx}
-                        className={`flex items-start gap-3 text-xs p-3 rounded-xl border transition-all ${
-                          isCompleted
+                        className={`flex items-start gap-3 text-xs p-3 rounded-xl border transition-all ${isCompleted
                             ? "bg-emerald-50/70 border-emerald-100"
                             : isCurrent
-                            ? "bg-sky-50 border-sky-200 ring-1 ring-sky-300"
-                            : "bg-white border-slate-100"
-                        }`}
+                              ? "bg-sky-50 border-sky-200 ring-1 ring-sky-300"
+                              : "bg-white border-slate-100"
+                          }`}
                       >
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-extrabold shrink-0 mt-0.5 text-xs ${
-                            isCompleted
+                          className={`w-6 h-6 rounded-full flex items-center justify-center font-extrabold shrink-0 mt-0.5 text-xs ${isCompleted
                               ? "bg-emerald-600 text-white"
                               : isCurrent
-                              ? "bg-sky-600 text-white animate-pulse"
-                              : "bg-slate-200 text-slate-700"
-                          }`}
+                                ? "bg-sky-600 text-white animate-pulse"
+                                : "bg-slate-200 text-slate-700"
+                            }`}
                         >
                           {isCompleted ? "✓" : (stop.stop_number || idx + 1)}
                         </div>
@@ -106,13 +104,12 @@ export default function ViewRequestModal({
                               Stop {stop.stop_number || idx + 1}: {stop.address}
                             </p>
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
-                                isCompleted
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${isCompleted
                                   ? "bg-emerald-100 text-emerald-800"
                                   : isCurrent
-                                  ? "bg-sky-100 text-sky-800"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}
+                                    ? "bg-sky-100 text-sky-800"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
                             >
                               {isCompleted ? "Arrived" : isCurrent ? "En Route" : "Pending"}
                             </span>
@@ -157,15 +154,14 @@ export default function ViewRequestModal({
               <div>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Discount Review</p>
                 <div className="mt-0.5">
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    viewingRequest.discountReviewStatus === "APPROVED"
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${viewingRequest.discountReviewStatus === "APPROVED"
                       ? "bg-emerald-100 text-emerald-800"
                       : viewingRequest.discountReviewStatus === "REJECTED"
-                      ? "bg-rose-100 text-rose-800"
-                      : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-slate-100 text-slate-700"
-                  }`}>
+                        ? "bg-rose-100 text-rose-800"
+                        : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-100 text-slate-700"
+                    }`}>
                     {viewingRequest.discountReviewStatus === "REJECTED"
                       ? "Disapproved (Reverted)"
                       : viewingRequest.discountReviewStatus.replace(/_/g, " ")}
@@ -212,17 +208,16 @@ export default function ViewRequestModal({
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Ride Status</p>
               <div className="mt-1">
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${
-                    viewingRequest.status === "Completed"
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${viewingRequest.status === "Completed"
                       ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                       : viewingRequest.status === "In Transit"
-                      ? "bg-emerald-500 text-white border border-emerald-600"
-                      : viewingRequest.status === "Pending" || viewingRequest.status === "Awaiting Payment" || viewingRequest.status === "Payment Confirmation"
-                      ? "bg-amber-50 text-amber-600 border border-amber-100"
-                      : viewingRequest.status === "Scheduled"
-                      ? "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                      : "bg-rose-50 text-rose-600 border border-rose-100"
-                  }`}
+                        ? "bg-emerald-500 text-white border border-emerald-600"
+                        : viewingRequest.status === "Pending" || viewingRequest.status === "Awaiting Payment" || viewingRequest.status === "Payment Confirmation"
+                          ? "bg-amber-50 text-amber-600 border border-amber-100"
+                          : viewingRequest.status === "Scheduled"
+                            ? "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                            : "bg-rose-50 text-rose-600 border border-rose-100"
+                    }`}
                 >
                   {viewingRequest.status}
                 </span>
@@ -276,13 +271,12 @@ export default function ViewRequestModal({
                       )}
                     </div>
                     <span
-                      className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${
-                        request.status === "APPROVED"
+                      className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${request.status === "APPROVED"
                           ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                           : request.status === "REJECTED"
                             ? "bg-rose-50 text-rose-600 border border-rose-100"
                             : "bg-amber-100 text-amber-700 border border-amber-200"
-                      }`}
+                        }`}
                     >
                       {request.status}
                     </span>
@@ -293,14 +287,15 @@ export default function ViewRequestModal({
           )}
 
           <div className="border-t border-slate-100 pt-5 mt-2 flex items-center justify-end gap-3">
-            {/* 
+            {/* COMMENT THIS TO HIDE DELETE BUTTON */}
             <button
+              type="button"
               onClick={() => onDeleteRequest(viewingRequest.id)}
               className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm hover:shadow"
             >
               Delete Ride Request
             </button>
-            */}
+            {/* COMMENT THIS TO HIDE DELETE BUTTON */}
             <button
               onClick={onClose}
               className="px-6 py-2.5 bg-[#000C7D] hover:bg-blue-800 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm hover:shadow"
