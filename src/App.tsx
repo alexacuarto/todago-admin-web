@@ -614,6 +614,32 @@ export default function App() {
           1
         );
 
+        let regularCount = 0;
+        let studentCount = 0;
+        let pwdCount = 0;
+        let seniorCount = 0;
+        const rawQty = b.passenger_qty;
+        if (typeof rawQty === "number") {
+          const count = Number(rawQty);
+          if (!b.discount_passenger_type || b.discount_passenger_type === "Regular") regularCount = count;
+          else if (b.discount_passenger_type === "Student") studentCount = count;
+          else if (b.discount_passenger_type === "PWD") pwdCount = count;
+          else if (b.discount_passenger_type === "Senior Citizen" || b.discount_passenger_type === "Senior Citizens") seniorCount = count;
+        } else if (rawQty && typeof rawQty === "object") {
+          regularCount = Number(rawQty.Regular || 0);
+          studentCount = Number(rawQty.Student || 0);
+          pwdCount = Number(rawQty.PWD || 0);
+          seniorCount = Number(rawQty["Senior Citizen"] || rawQty["Senior Citizens"] || rawQty.Senior || 0);
+        } else if (typeof rawQty === "string") {
+          const parsedNum = Number(rawQty);
+          if (!isNaN(parsedNum)) {
+            if (!b.discount_passenger_type || b.discount_passenger_type === "Regular") regularCount = parsedNum;
+            else if (b.discount_passenger_type === "Student") studentCount = parsedNum;
+            else if (b.discount_passenger_type === "PWD") pwdCount = parsedNum;
+            else if (b.discount_passenger_type === "Senior Citizen" || b.discount_passenger_type === "Senior Citizens") seniorCount = parsedNum;
+          }
+        }
+
         return {
           id: b.id,
           passenger: passengerName,
@@ -656,10 +682,10 @@ export default function App() {
           requestedAt: b.created_at || undefined,
           completedAt: b.completed_at || null,
           completed_at: b.completed_at || null,
-          regularPassengerCount: b.passenger_qty && (!b.discount_passenger_type || b.discount_passenger_type === "Regular") ? Number(b.passenger_qty) : 0,
-          studentPassengerCount: b.discount_passenger_type === "Student" ? Number(b.passenger_qty || 0) : 0,
-          pwdPassengerCount: b.discount_passenger_type === "PWD" ? Number(b.passenger_qty || 0) : 0,
-          seniorPassengerCount: b.discount_passenger_type === "Senior Citizen" ? Number(b.passenger_qty || 0) : 0,
+          regularPassengerCount: regularCount,
+          studentPassengerCount: studentCount,
+          pwdPassengerCount: pwdCount,
+          seniorPassengerCount: seniorCount,
           toda,
           cancelled_by: b.cancelled_by || null,
           cancelled_at: b.cancelled_at || null,
