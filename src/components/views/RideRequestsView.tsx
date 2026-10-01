@@ -61,6 +61,7 @@ export default function RideRequestsView({
       "Request ID",
       "Trip Type",
       "Stops Count",
+      "Distance (km)",
       "Passenger",
       "Driver",
       "TODA",
@@ -79,6 +80,9 @@ export default function RideRequestsView({
       const isSpecial = r.tripType?.toLowerCase().includes("special") || (r.stops && r.stops.length > 0) || (r.totalStops != null && r.totalStops > 1);
       const stopsCount = r.stops?.length || r.totalStops || (isSpecial ? 1 : 1);
       const tripTypeLabel = isSpecial ? "Special Trip" : (r.tripType || "One Way");
+      const distStr = (r.actualDistanceKm ?? r.estimatedDistanceKm) != null
+        ? `${(r.actualDistanceKm ?? r.estimatedDistanceKm)!.toFixed(2)} km`
+        : "N/A";
       const stopsListStr = r.stops && r.stops.length > 0
         ? r.stops.map((s, i) => `${i === r.stops!.length - 1 ? "Drop off" : `Stop ${s.stop_number || i + 1}`}: ${s.address}`).join(" | ")
         : (r.destination || "");
@@ -86,6 +90,7 @@ export default function RideRequestsView({
         r.id,
         tripTypeLabel,
         stopsCount,
+        distStr,
         r.passenger,
         r.driver,
         r.toda || "Unassigned",
@@ -206,6 +211,11 @@ export default function RideRequestsView({
                       </p>
                     ) : (
                       <p className="text-xs text-slate-400">{request.destination}</p>
+                    )}
+                    {(request.actualDistanceKm ?? request.estimatedDistanceKm) != null && (
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-[#000C7D] text-[10px] font-bold rounded-md border border-blue-100">
+                        📍 {(request.actualDistanceKm ?? request.estimatedDistanceKm)!.toFixed(2)} km
+                      </span>
                     )}
                   </td>
                   <td className="py-5 px-3 text-[#000C7D] font-extrabold">₱{request.fare.toLocaleString()}</td>
