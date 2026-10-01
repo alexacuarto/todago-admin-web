@@ -133,6 +133,8 @@ export interface RideRequest {
   dropoffLongitude?: number | null;
   returnLatitude?: number | null;
   returnLongitude?: number | null;
+  estimatedDistanceKm?: number | null;
+  actualDistanceKm?: number | null;
   status: "Pending" | "In Transit" | "Awaiting Payment" | "Payment Confirmation" | "Scheduled" | "Completed" | "Cancelled";
   fare: number;
   time: string;

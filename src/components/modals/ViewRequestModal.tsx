@@ -26,6 +26,7 @@ export default function ViewRequestModal({
   const completedTimestamp = viewingRequest.completedAt || viewingRequest.completed_at;
   const bookingTimestamp = viewingRequest.requestedAt || viewingRequest.time;
   const tripDuration = completedTimestamp ? formatTripDuration(bookingTimestamp, completedTimestamp) : null;
+  const distanceKm = viewingRequest.actualDistanceKm ?? viewingRequest.estimatedDistanceKm;
 
   const totalPassengers = viewingRequest.totalPassengers || 1;
   const isSolo = viewingRequest.isSolo ?? (totalPassengers === 1);
@@ -98,6 +99,7 @@ export default function ViewRequestModal({
           <div className="text-left">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-200">
               {hasMultipleStops ? `Special Trip • ${stopsCount} Stops` : isSpecialTrip ? "Special Trip" : isRoundTrip ? "Round Trip" : "One Way Trip"}
+              {distanceKm != null ? ` • ${distanceKm.toFixed(2)} km` : ""}
             </span>
             <h3 className="font-bold text-lg">Booking Details</h3>
           </div>
@@ -314,6 +316,12 @@ export default function ViewRequestModal({
                 </span>
               </div>
               <div className="space-y-1.5 text-xs">
+                {distanceKm != null && (
+                  <div className="flex justify-between items-center text-slate-600">
+                    <span>Computed Road Distance:</span>
+                    <span className="font-extrabold text-[#000C7D]">{distanceKm.toFixed(2)} km</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-slate-600">
                   <span>Regular Undiscounted Base Fare:</span>
                   <span className="font-bold text-slate-800">₱{viewingRequest.regularFare ?? viewingRequest.fare}</span>
@@ -377,6 +385,12 @@ export default function ViewRequestModal({
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">TODA Association</p>
               <p className="font-bold text-slate-600 mt-0.5">{viewingRequest.toda}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Route Distance</p>
+              <p className="font-bold text-[#000C7D] mt-0.5">
+                {distanceKm != null ? `${distanceKm.toFixed(2)} km` : "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Ride Status</p>
