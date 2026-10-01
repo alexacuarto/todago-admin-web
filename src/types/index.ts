@@ -150,6 +150,12 @@ export interface RideRequest {
   studentPassengerCount?: number;
   pwdPassengerCount?: number;
   seniorPassengerCount?: number;
+  totalPassengers?: number;
+  isSolo?: boolean;
+  companionCount?: number;
+  discountPassengerType?: string | null;
+  passengerTypeDisplay?: string | null;
+  passengerQty?: any;
   earningId?: string;
   earningAmount?: number;
   earningDate?: string;

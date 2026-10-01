@@ -80,7 +80,7 @@ export default function RideRequestsView({
       const stopsCount = r.stops?.length || r.totalStops || (isSpecial ? 1 : 1);
       const tripTypeLabel = isSpecial ? "Special Trip" : (r.tripType || "One Way");
       const stopsListStr = r.stops && r.stops.length > 0
-        ? r.stops.map((s, i) => `Stop ${s.stop_number || i + 1}: ${s.address}`).join(" | ")
+        ? r.stops.map((s, i) => `${i === r.stops!.length - 1 ? "Drop off" : `Stop ${s.stop_number || i + 1}`}: ${s.address}`).join(" | ")
         : (r.destination || "");
       return [
         r.id,
@@ -200,7 +200,7 @@ export default function RideRequestsView({
                     {request.stops && request.stops.length > 0 ? (
                       <p
                         className="text-xs text-slate-500 font-medium line-clamp-2"
-                        title={request.stops.map((s, i) => `Stop ${s.stop_number || i + 1}: ${s.address}`).join("\n")}
+                        title={request.stops.map((s, i) => `${i === request.stops!.length - 1 ? "Drop off" : `Stop ${s.stop_number || i + 1}`}: ${s.address}`).join("\n")}
                       >
                         {request.stops.map((s) => s.address.split(",")[0].trim()).join(" → ")}
                       </p>

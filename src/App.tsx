@@ -301,6 +301,7 @@ export default function App() {
           return_longitude,
           passenger_qty,
           discount_passenger_type,
+          passenger_type_display,
           cancelled_by,
           cancelled_at,
           cancel_reason,
@@ -618,13 +619,21 @@ export default function App() {
         let studentCount = 0;
         let pwdCount = 0;
         let seniorCount = 0;
-        const rawQty = b.passenger_qty;
+        let rawQty = b.passenger_qty;
+        if (typeof rawQty === "string" && rawQty.trim()) {
+          try {
+            rawQty = JSON.parse(rawQty);
+          } catch (_) {}
+        }
+
+        const primaryType = b.discount_passenger_type || b.passenger_type_display || "Regular";
+
         if (typeof rawQty === "number") {
           const count = Number(rawQty);
-          if (!b.discount_passenger_type || b.discount_passenger_type === "Regular") regularCount = count;
-          else if (b.discount_passenger_type === "Student") studentCount = count;
-          else if (b.discount_passenger_type === "PWD") pwdCount = count;
-          else if (b.discount_passenger_type === "Senior Citizen" || b.discount_passenger_type === "Senior Citizens") seniorCount = count;
+          if (primaryType === "Student") studentCount = count;
+          else if (primaryType === "PWD") pwdCount = count;
+          else if (primaryType === "Senior Citizen" || primaryType === "Senior Citizens") seniorCount = count;
+          else regularCount = count;
         } else if (rawQty && typeof rawQty === "object") {
           regularCount = Number(rawQty.Regular || 0);
           studentCount = Number(rawQty.Student || 0);
@@ -632,13 +641,25 @@ export default function App() {
           seniorCount = Number(rawQty["Senior Citizen"] || rawQty["Senior Citizens"] || rawQty.Senior || 0);
         } else if (typeof rawQty === "string") {
           const parsedNum = Number(rawQty);
-          if (!isNaN(parsedNum)) {
-            if (!b.discount_passenger_type || b.discount_passenger_type === "Regular") regularCount = parsedNum;
-            else if (b.discount_passenger_type === "Student") studentCount = parsedNum;
-            else if (b.discount_passenger_type === "PWD") pwdCount = parsedNum;
-            else if (b.discount_passenger_type === "Senior Citizen" || b.discount_passenger_type === "Senior Citizens") seniorCount = parsedNum;
+          if (!isNaN(parsedNum) && parsedNum > 0) {
+            if (primaryType === "Student") studentCount = parsedNum;
+            else if (primaryType === "PWD") pwdCount = parsedNum;
+            else if (primaryType === "Senior Citizen" || primaryType === "Senior Citizens") seniorCount = parsedNum;
+            else regularCount = parsedNum;
           }
         }
+
+        let totalPassengers = regularCount + studentCount + pwdCount + seniorCount;
+        if (totalPassengers === 0) {
+          totalPassengers = 1;
+          if (primaryType === "Student") studentCount = 1;
+          else if (primaryType === "PWD") pwdCount = 1;
+          else if (primaryType === "Senior Citizen" || primaryType === "Senior Citizens") seniorCount = 1;
+          else regularCount = 1;
+        }
+
+        const isSolo = totalPassengers === 1;
+        const companionCount = Math.max(0, totalPassengers - 1);
 
         return {
           id: b.id,
@@ -686,6 +707,12 @@ export default function App() {
           studentPassengerCount: studentCount,
           pwdPassengerCount: pwdCount,
           seniorPassengerCount: seniorCount,
+          totalPassengers,
+          isSolo,
+          companionCount,
+          discountPassengerType: b.discount_passenger_type || null,
+          passengerTypeDisplay: b.passenger_type_display || null,
+          passengerQty: b.passenger_qty || null,
           toda,
           cancelled_by: b.cancelled_by || null,
           cancelled_at: b.cancelled_at || null,
