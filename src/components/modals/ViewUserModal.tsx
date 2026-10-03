@@ -619,21 +619,29 @@ export default function ViewUserModal({
       });
       if (error) {
         console.warn("RPC failed, falling back to direct table update:", error.message);
+        const isDiscount = status === "VERIFIED" && ["Student", "Senior Citizen", "PWD"].includes(passenger.accountPassengerType || "");
         const { error: pError } = await supabase
           .from("passengers")
           .update({
             discount_document_status: status,
             discount_document_rejection_reason: status === "REJECTED" ? discountReviewReason.trim() : null,
             discount_document_reviewed_at: new Date().toISOString(),
-            discount_eligible: false,
+            discount_eligible: isDiscount,
           })
           .eq("id", passenger.id);
         if (pError) throw pError;
 
         if (passenger.profileId) {
+          const profileUpdate: Record<string, any> = {
+            is_active: status === "VERIFIED",
+            updated_at: new Date().toISOString(),
+          };
+          if (status === "VERIFIED" && passenger.accountPassengerType) {
+            profileUpdate.passenger_type = passenger.accountPassengerType;
+          }
           await supabase
             .from("profiles")
-            .update({ is_active: status === "VERIFIED", updated_at: new Date().toISOString() })
+            .update(profileUpdate)
             .eq("id", passenger.profileId);
         }
       }
