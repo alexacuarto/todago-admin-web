@@ -413,7 +413,7 @@ export default function App() {
           lastCancelDate,
           avatarUrl: p?.avatar_url || pd?.selfie_photo_url || null,
           selfiePhotoUrl: pd?.selfie_photo_url || p?.avatar_url || pd?.discount_document_url || null,
-          accountPassengerType: pd?.account_passenger_type || "Regular",
+          accountPassengerType: pd?.account_passenger_type || p?.passenger_type || "Regular",
           discountDocumentUrl: pd?.discount_document_url || null,
           discountDocumentBackUrl: pd?.discount_document_back_url || null,
           discountDocumentStatus: pd?.discount_document_status || "NOT_REQUIRED",
@@ -520,16 +520,18 @@ export default function App() {
       // Map Ride Requests
       const mappedRequests: RideRequest[] = bookings.map((b: any) => {
         let passengerProfile: any = profiles.find(p => p.id === b.passenger_id);
+        let passengerRow: any = null;
 
-        if (!passengerProfile && passengersData) {
-          const passengerRow = passengersData.find(pd => pd.id === b.passenger_id);
-          if (passengerRow) {
+        if (passengersData) {
+          passengerRow = passengersData.find(pd => pd.id === b.passenger_id || pd.profile_id === b.passenger_id);
+          if (!passengerProfile && passengerRow) {
             passengerProfile = profiles.find(p => p.id === passengerRow.profile_id);
           }
         }
 
         passengerProfile = passengerProfile || {};
         const passengerName = `${passengerProfile.first_name || ""} ${passengerProfile.last_name || ""}`.trim() || passengerProfile.phone_number || passengerProfile.email || "Unknown Passenger";
+        const accountPassengerType = passengerRow?.account_passenger_type || passengerProfile?.passenger_type || b.discount_passenger_type || b.passenger_type_display || "Regular";
 
         const driverObj = driversData.find((d: any) => d.id === b.driver_id || d.profile_id === b.driver_id);
         const driverProfile: any = driverObj
@@ -716,6 +718,7 @@ export default function App() {
           companionCount,
           discountPassengerType: b.discount_passenger_type || null,
           passengerTypeDisplay: b.passenger_type_display || null,
+          accountPassengerType,
           passengerQty: b.passenger_qty || null,
           toda,
           cancelled_by: b.cancelled_by || null,

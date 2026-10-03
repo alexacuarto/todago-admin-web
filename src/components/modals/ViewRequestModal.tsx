@@ -1,5 +1,8 @@
+import { useState, useEffect } from "react";
 import { RideRequest } from "../../types";
 import { formatDateTime, formatTripDuration } from "../../lib/dateUtils";
+import { supabase } from "../../lib/supabase";
+import { getPassengerTypeBadge } from "../views/UsersView";
 
 interface ViewRequestModalProps {
   isOpen: boolean;
@@ -14,6 +17,44 @@ export default function ViewRequestModal({
   viewingRequest,
   onDeleteRequest,
 }: ViewRequestModalProps) {
+  const [discountRates, setDiscountRates] = useState<{
+    student: number;
+    seniorCitizen: number;
+    pwd: number;
+  }>(() => {
+    try {
+      const cached = localStorage.getItem("toda_go_fare_oneway");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          student: Number(parsed.studentDiscount) || 20,
+          seniorCitizen: Number(parsed.seniorCitizenDiscount) || 20,
+          pwd: Number(parsed.pwdDiscount) || 20,
+        };
+      }
+    } catch (_) {}
+    return { student: 20, seniorCitizen: 20, pwd: 20 };
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    supabase
+      .from("fare_configurations")
+      .select("student_discount, senior_citizen_discount, pwd_discount")
+      .eq("trip_type", "one_way")
+      .eq("is_active", true)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setDiscountRates({
+            student: Number(data.student_discount) || 20,
+            seniorCitizen: Number(data.senior_citizen_discount) || 20,
+            pwd: Number(data.pwd_discount) || 20,
+          });
+        }
+      });
+  }, [isOpen]);
+
   if (!isOpen || !viewingRequest) return null;
 
   const hasMultipleStops = Boolean(viewingRequest.stops && viewingRequest.stops.length > 1);
@@ -35,7 +76,8 @@ export default function ViewRequestModal({
   const studentCount = viewingRequest.studentPassengerCount ?? 0;
   const seniorCount = viewingRequest.seniorPassengerCount ?? 0;
   const pwdCount = viewingRequest.pwdPassengerCount ?? 0;
-  const primaryType = viewingRequest.discountPassengerType || viewingRequest.passengerTypeDisplay || "Regular";
+  const primaryType = viewingRequest.accountPassengerType || viewingRequest.discountPassengerType || viewingRequest.passengerTypeDisplay || "Regular";
+  const passengerTypeBadge = getPassengerTypeBadge(primaryType);
 
   const discountRequests = viewingRequest.bookingDiscountRequests || [];
   const companionsList: {
@@ -108,7 +150,13 @@ export default function ViewRequestModal({
         <div className="p-6 flex flex-col gap-6 text-left overflow-y-auto">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
             <div>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Passenger</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Passenger</p>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${passengerTypeBadge.className}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${passengerTypeBadge.dotClass}`} />
+                  {passengerTypeBadge.label}
+                </span>
+              </div>
               <p className="font-bold text-[#000C7D] text-base mt-0.5">{viewingRequest.passenger}</p>
             </div>
             <div>
@@ -284,7 +332,7 @@ export default function ViewRequestModal({
                 }`}>
                   <p className="text-[11px] font-semibold text-sky-800">Student</p>
                   <p className="text-base font-extrabold text-sky-900 mt-0.5">{studentCount}</p>
-                  <span className="text-[10px] text-sky-600 font-bold">20% Off</span>
+                  <span className="text-[10px] text-sky-600 font-bold">{discountRates.student}% Off</span>
                 </div>
                 <div className={`p-2 rounded-xl border text-center ${
                   seniorCount > 0 
@@ -293,7 +341,7 @@ export default function ViewRequestModal({
                 }`}>
                   <p className="text-[11px] font-semibold text-amber-800">Senior</p>
                   <p className="text-base font-extrabold text-amber-900 mt-0.5">{seniorCount}</p>
-                  <span className="text-[10px] text-amber-600 font-bold">20% Off</span>
+                  <span className="text-[10px] text-amber-600 font-bold">{discountRates.seniorCitizen}% Off</span>
                 </div>
                 <div className={`p-2 rounded-xl border text-center ${
                   pwdCount > 0 
@@ -302,7 +350,7 @@ export default function ViewRequestModal({
                 }`}>
                   <p className="text-[11px] font-semibold text-purple-800">PWD</p>
                   <p className="text-base font-extrabold text-purple-900 mt-0.5">{pwdCount}</p>
-                  <span className="text-[10px] text-purple-600 font-bold">20% Off</span>
+                  <span className="text-[10px] text-purple-600 font-bold">{discountRates.pwd}% Off</span>
                 </div>
               </div>
             </div>
@@ -328,7 +376,7 @@ export default function ViewRequestModal({
                 </div>
                 {viewingRequest.regularFare != null && viewingRequest.regularFare > viewingRequest.fare && (
                   <div className="flex justify-between items-center text-emerald-700 font-medium">
-                    <span>Statutory Discount Deductions (20% share):</span>
+                    <span>Statutory Discount Deductions:</span>
                     <span className="font-extrabold">
                       -₱{(viewingRequest.regularFare - viewingRequest.fare).toFixed(2)}
                     </span>

@@ -3,6 +3,7 @@ import { Driver, DriverProfileChangeRequest, Passenger, RideRequest } from "../.
 import { supabase } from "../../lib/supabase";
 import { formatDateTime } from "../../lib/dateUtils";
 import { ConfirmModal, ConfirmVariant } from "./ConfirmModal";
+import { getPassengerTypeBadge } from "../views/UsersView";
 
 interface ViewUserModalProps {
   isOpen: boolean;
@@ -1412,11 +1413,29 @@ export default function ViewUserModal({
               ? Math.max(1, Math.ceil((new Date(passenger.bookingRestrictionUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
               : 0;
 
+            const typeBadge = getPassengerTypeBadge(passenger.accountPassengerType);
+
             return (
               <>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm border border-slate-100 rounded-2xl p-4 bg-slate-50/50">
                   <Field label="Passenger Name" value={passenger.name} />
                   <Field label="Contact Number" value={passenger.contact} />
+                  <Field
+                    label="Passenger Type"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${typeBadge.className}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${typeBadge.dotClass}`} />
+                          {typeBadge.label}
+                        </span>
+                        {passenger.discountEligible ? (
+                          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                            Discount Active
+                          </span>
+                        ) : null}
+                      </div>
+                    }
+                  />
                   <Field label="Email" value={passenger.email || "N/A"} />
                   <Field label="Joined Date" value={passenger.joinedDate} />
                   <Field label="ID Verification" value={passenger.discountDocumentStatus || "NOT_REQUIRED"} />
