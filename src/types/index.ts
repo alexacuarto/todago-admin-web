@@ -157,6 +157,7 @@ export interface RideRequest {
   companionCount?: number;
   discountPassengerType?: string | null;
   passengerTypeDisplay?: string | null;
+  accountPassengerType?: string;
   passengerQty?: any;
   earningId?: string;
   earningAmount?: number;

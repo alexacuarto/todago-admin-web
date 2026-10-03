@@ -50,6 +50,7 @@ interface UsersViewProps {
 type UserSortOption = "newest" | "oldest" | "name-asc" | "name-desc";
 type RequestStatusOption = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 type ApprovalFilterOption = "ALL" | "PENDING" | "VERIFIED";
+type PassengerTypeFilterOption = "ALL" | "Regular" | "Student" | "Senior Citizen" | "PWD";
 
 const pageSize = 5;
 
@@ -132,6 +133,36 @@ const requestBadge = (status: string) => {
   return "bg-amber-50 text-amber-700 border-amber-200";
 };
 
+export const getPassengerTypeBadge = (type?: string) => {
+  const normalized = (type || "Regular").trim().toLowerCase();
+  if (normalized === "student") {
+    return {
+      label: "Student",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+      dotClass: "bg-blue-500",
+    };
+  }
+  if (normalized === "senior citizen" || normalized === "senior citizens" || normalized === "senior") {
+    return {
+      label: "Senior Citizen",
+      className: "bg-purple-50 text-purple-700 border-purple-200",
+      dotClass: "bg-purple-500",
+    };
+  }
+  if (normalized === "pwd") {
+    return {
+      label: "PWD",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+      dotClass: "bg-amber-500",
+    };
+  }
+  return {
+    label: "Regular",
+    className: "bg-slate-100 text-slate-700 border-slate-200",
+    dotClass: "bg-slate-400",
+  };
+};
+
 export default function UsersView({
   filteredDrivers,
   filteredPassengers,
@@ -163,6 +194,7 @@ export default function UsersView({
   const [requestStatusFilter, setRequestStatusFilter] = React.useState<RequestStatusOption>("ALL");
   const [driverApprovalFilter, setDriverApprovalFilter] = React.useState<ApprovalFilterOption>("ALL");
   const [passengerApprovalFilter, setPassengerApprovalFilter] = React.useState<ApprovalFilterOption>("ALL");
+  const [passengerTypeFilter, setPassengerTypeFilter] = React.useState<PassengerTypeFilterOption>("ALL");
   const [rejectingRequestId, setRejectingRequestId] = React.useState<string | null>(null);
   const [rejectReason, setRejectReason] = React.useState("");
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -232,6 +264,12 @@ export default function UsersView({
       list = list.filter((p) => p.discountDocumentStatus === "VERIFIED");
     }
 
+    if (passengerTypeFilter !== "ALL") {
+      list = list.filter(
+        (p) => (p.accountPassengerType || "Regular").trim().toLowerCase() === passengerTypeFilter.toLowerCase()
+      );
+    }
+
     return [...list].sort((a, b) => {
       if (userSort === "newest") {
         const timeDiff = getUserTimestamp(b) - getUserTimestamp(a);
@@ -251,7 +289,7 @@ export default function UsersView({
       }
       return 0;
     });
-  }, [filteredPassengers, passengerApprovalFilter, userSort]);
+  }, [filteredPassengers, passengerApprovalFilter, passengerTypeFilter, userSort]);
 
   // Filter & sort change requests
   const sortedRequests = React.useMemo(() => {
@@ -298,7 +336,7 @@ export default function UsersView({
     setDriverPage(1);
     setPassengerPage(1);
     setRequestPage(1);
-  }, [driverSearch, userTodaFilter, usersSubTab, userSort, requestStatusFilter, driverApprovalFilter, passengerApprovalFilter]);
+  }, [driverSearch, userTodaFilter, usersSubTab, userSort, requestStatusFilter, driverApprovalFilter, passengerApprovalFilter, passengerTypeFilter]);
 
   React.useEffect(() => {
     if (driverPage > driverPageCount) setDriverPage(driverPageCount);
@@ -380,6 +418,7 @@ export default function UsersView({
     } else if (usersSubTab === "passengers") {
       const headers = [
         "Passenger Name",
+        "Passenger Type",
         "Contact Number",
         "Email",
         "ID Verification Status",
@@ -392,6 +431,7 @@ export default function UsersView({
       ];
       const rows = sortedPassengers.map((p) => [
         p.name,
+        p.accountPassengerType || "Regular",
         p.contact,
         p.email || "",
         p.discountDocumentStatus || "NOT_REQUIRED",
@@ -595,22 +635,43 @@ export default function UsersView({
               )}
 
               {usersSubTab === "passengers" && (
-                <div className="relative w-full sm:w-48">
-                  <select
-                    value={passengerApprovalFilter}
-                    onChange={(event) => setPassengerApprovalFilter(event.target.value as ApprovalFilterOption)}
-                    className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#000C7D] cursor-pointer appearance-none outline-hidden focus:border-blue-500"
-                  >
-                    <option value="ALL">All Approval Status</option>
-                    <option value="PENDING">Pending Approval Only ({pendingPassengersCount})</option>
-                    <option value="VERIFIED">Verified / Approved</option>
-                  </select>
-                  <span className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </span>
-                </div>
+                <>
+                  <div className="relative w-full sm:w-48">
+                    <select
+                      value={passengerTypeFilter}
+                      onChange={(event) => setPassengerTypeFilter(event.target.value as PassengerTypeFilterOption)}
+                      className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#000C7D] cursor-pointer appearance-none outline-hidden focus:border-blue-500"
+                    >
+                      <option value="ALL">All Passenger Types</option>
+                      <option value="Regular">Regular Only</option>
+                      <option value="Student">Student Only</option>
+                      <option value="Senior Citizen">Senior Citizen Only</option>
+                      <option value="PWD">PWD Only</option>
+                    </select>
+                    <span className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  <div className="relative w-full sm:w-48">
+                    <select
+                      value={passengerApprovalFilter}
+                      onChange={(event) => setPassengerApprovalFilter(event.target.value as ApprovalFilterOption)}
+                      className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#000C7D] cursor-pointer appearance-none outline-hidden focus:border-blue-500"
+                    >
+                      <option value="ALL">All Approval Status</option>
+                      <option value="PENDING">Pending Approval Only ({pendingPassengersCount})</option>
+                      <option value="VERIFIED">Verified / Approved</option>
+                    </select>
+                    <span className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
+                  </div>
+                </>
               )}
 
               {usersSubTab === "requests" && (
@@ -795,6 +856,7 @@ export default function UsersView({
                     <tr className="border-b border-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider">
                       <th className="pb-3 pl-3">Name</th>
                       <th className="pb-3 px-3">Contact</th>
+                      <th className="pb-3 px-3">Passenger Type</th>
                       <th className="pb-3 px-3">ID Verification</th>
                       <th className="pb-3 px-3">Cancelled Trips</th>
                       <th className="pb-3 px-3">Account Status</th>
@@ -809,10 +871,18 @@ export default function UsersView({
                       if (passenger.status.startsWith("Restricted")) statusClass = "bg-rose-50 text-rose-600 border border-rose-100";
                       if (passenger.status === "Inactive") statusClass = "bg-slate-50 text-slate-600 border border-slate-100";
 
+                      const typeBadge = getPassengerTypeBadge(passenger.accountPassengerType);
+
                       return (
                         <tr key={passenger.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="py-4 pl-3 text-[#000C7D] font-bold">{passenger.name}</td>
                           <td className="py-4 px-3 text-slate-600">{passenger.contact}</td>
+                          <td className="py-4 px-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${typeBadge.className}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${typeBadge.dotClass}`} />
+                              {typeBadge.label}
+                            </span>
+                          </td>
                           <td className="py-4 px-3 text-slate-600">{passenger.discountDocumentStatus || "NOT_REQUIRED"}</td>
                           <td className="py-4 px-3 text-slate-600">{passenger.canceledTrips}</td>
                           <td className="py-4 px-3">
@@ -837,7 +907,7 @@ export default function UsersView({
                     })}
                     {sortedPassengers.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                        <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
                           {passengerApprovalFilter === "PENDING"
                             ? "No passengers currently pending approval."
                             : "No passengers registered matching your search query."}
