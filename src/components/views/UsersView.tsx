@@ -45,6 +45,11 @@ interface UsersViewProps {
     updates: { name: string; email: string; phone: string; password?: string },
   ) => Promise<boolean>;
   onDeleteAdmin?: (account: AdminAccount) => Promise<boolean>;
+  onUpdatePassengerType?: (
+    passengerId: string,
+    profileId: string | undefined,
+    newType: "Regular" | "Student" | "Senior Citizen" | "PWD"
+  ) => Promise<void> | void;
 }
 
 type UserSortOption = "newest" | "oldest" | "name-asc" | "name-desc";
@@ -186,9 +191,11 @@ export default function UsersView({
   onCreateAdmin,
   onUpdateAdmin,
   onDeleteAdmin,
+  onUpdatePassengerType,
 }: UsersViewProps) {
   const [driverPage, setDriverPage] = React.useState(1);
   const [passengerPage, setPassengerPage] = React.useState(1);
+  const [updatingPassengerId, setUpdatingPassengerId] = React.useState<string | null>(null);
   const [requestPage, setRequestPage] = React.useState(1);
   const [userSort, setUserSort] = React.useState<UserSortOption>("newest");
   const [requestStatusFilter, setRequestStatusFilter] = React.useState<RequestStatusOption>("ALL");
@@ -878,10 +885,36 @@ export default function UsersView({
                           <td className="py-4 pl-3 text-[#000C7D] font-bold">{passenger.name}</td>
                           <td className="py-4 px-3 text-slate-600">{passenger.contact}</td>
                           <td className="py-4 px-3">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${typeBadge.className}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${typeBadge.dotClass}`} />
-                              {typeBadge.label}
-                            </span>
+                            <div className="relative inline-block">
+                              <select
+                                value={typeBadge.label}
+                                disabled={updatingPassengerId === passenger.id}
+                                onChange={async (e) => {
+                                  const val = e.target.value as "Regular" | "Student" | "Senior Citizen" | "PWD";
+                                  if (val === typeBadge.label) return;
+                                  setUpdatingPassengerId(passenger.id);
+                                  try {
+                                    await onUpdatePassengerType?.(passenger.id, passenger.profileId, val);
+                                  } finally {
+                                    setUpdatingPassengerId(null);
+                                  }
+                                }}
+                                title="Click to change passenger type"
+                                className={`appearance-none inline-flex items-center gap-1 pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${typeBadge.className} hover:opacity-90 focus:outline-hidden focus:ring-2 focus:ring-blue-300 transition-all ${
+                                  updatingPassengerId === passenger.id ? "opacity-50 cursor-wait" : ""
+                                }`}
+                              >
+                                <option value="Regular" className="text-slate-800 bg-white font-semibold">Regular</option>
+                                <option value="Student" className="text-blue-700 bg-white font-semibold">Student</option>
+                                <option value="Senior Citizen" className="text-purple-700 bg-white font-semibold">Senior Citizen</option>
+                                <option value="PWD" className="text-amber-700 bg-white font-semibold">PWD</option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                <svg className="w-3 h-3 text-current opacity-70" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-4 px-3 text-slate-600">{passenger.discountDocumentStatus || "NOT_REQUIRED"}</td>
                           <td className="py-4 px-3 text-slate-600">{passenger.canceledTrips}</td>

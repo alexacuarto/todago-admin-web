@@ -1351,6 +1351,102 @@ export default function App() {
 
   const handleResetCanceledTrips = handleLiftPassengerRestriction;
 
+  const handleUpdatePassengerType = async (
+    passengerId: string,
+    profileId: string | undefined,
+    newType: "Regular" | "Student" | "Senior Citizen" | "PWD"
+  ) => {
+    console.log(`[Supabase Query] Updating passenger ${passengerId} type to ${newType}...`);
+    try {
+      const isDiscount = ["Student", "Senior Citizen", "PWD"].includes(newType);
+      const passengerUpdate: Record<string, any> = {
+        account_passenger_type: newType,
+        discount_eligible: isDiscount,
+        updated_at: new Date().toISOString(),
+      };
+      if (isDiscount) {
+        passengerUpdate.discount_document_status = "VERIFIED";
+      } else {
+        passengerUpdate.discount_document_status = "NOT_REQUIRED";
+      }
+
+      // Update passengers table
+      const { error: pError } = await supabase
+        .from("passengers")
+        .update(passengerUpdate)
+        .eq("id", passengerId);
+
+      if (pError) throw pError;
+
+      // Resolve profile_id if not passed
+      let targetProfileId = profileId;
+      if (!targetProfileId) {
+        const { data: pData } = await supabase
+          .from("passengers")
+          .select("profile_id")
+          .eq("id", passengerId)
+          .maybeSingle();
+        targetProfileId = pData?.profile_id;
+      }
+
+      if (targetProfileId) {
+        await supabase
+          .from("profiles")
+          .update({
+            passenger_type: newType,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", targetProfileId);
+
+        try {
+          await supabase.from("notifications").insert({
+            recipient_id: targetProfileId,
+            type: "in_app",
+            title: "Passenger Type Updated",
+            body: `Your passenger account type has been updated to ${newType} by the administrator.`,
+            notification_category: "account_status",
+            data: { action: "passenger_type_updated", passenger_type: newType, date: new Date().toISOString() },
+          });
+        } catch (notifErr) {
+          console.warn("Could not insert passenger type notification:", notifErr);
+        }
+      }
+
+      // Update local state
+      setPassengers((prev) =>
+        prev.map((p) => {
+          if (p.id === passengerId || (targetProfileId && p.profileId === targetProfileId)) {
+            return {
+              ...p,
+              accountPassengerType: newType,
+              discountEligible: isDiscount,
+              discountDocumentStatus: isDiscount ? "VERIFIED" : "NOT_REQUIRED",
+            };
+          }
+          return p;
+        })
+      );
+
+      setViewingUser((curr) => {
+        if (curr && (curr.id === passengerId || (targetProfileId && "profileId" in curr && (curr as any).profileId === targetProfileId))) {
+          return {
+            ...curr,
+            accountPassengerType: newType,
+            discountEligible: isDiscount,
+            discountDocumentStatus: isDiscount ? "VERIFIED" : "NOT_REQUIRED",
+          } as Passenger;
+        }
+        return curr;
+      });
+
+      alert(`Passenger type successfully updated to ${newType}.`);
+      fetchData(false);
+    } catch (err: any) {
+      console.error("[Supabase Error] Failed to update passenger type:", err);
+      alert(`Failed to update passenger type: ${err?.message || err}`);
+    }
+  };
+
   const handleReviewDriverChangeRequest = async (
     requestId: string,
     status: "APPROVED" | "REJECTED",
@@ -1978,6 +2074,7 @@ export default function App() {
                   onCreateAdmin={handleCreateAdmin}
                   onUpdateAdmin={handleUpdateAdmin}
                   onDeleteAdmin={handleDeleteAdmin}
+                  onUpdatePassengerType={handleUpdatePassengerType}
                 />
               )}
 
@@ -2065,6 +2162,7 @@ export default function App() {
         rideRequests={rideRequests}
         driverChangeRequests={driverChangeRequests}
         onReviewChangeRequest={handleReviewDriverChangeRequest}
+        onUpdatePassengerType={handleUpdatePassengerType}
       />
 
       <StatBreakdownModal

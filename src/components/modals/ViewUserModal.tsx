@@ -20,6 +20,11 @@ interface ViewUserModalProps {
   rideRequests?: RideRequest[];
   driverChangeRequests?: DriverProfileChangeRequest[];
   onReviewChangeRequest?: (requestId: string, status: "APPROVED" | "REJECTED", reason?: string) => Promise<void> | void;
+  onUpdatePassengerType?: (
+    passengerId: string,
+    profileId: string | undefined,
+    newType: "Regular" | "Student" | "Senior Citizen" | "PWD"
+  ) => Promise<void> | void;
 }
 
 const statusBadge = (status: string) => {
@@ -150,8 +155,10 @@ export default function ViewUserModal({
   rideRequests = [],
   driverChangeRequests = [],
   onReviewChangeRequest,
+  onUpdatePassengerType,
 }: ViewUserModalProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [isUpdatingPassengerType, setIsUpdatingPassengerType] = useState(false);
   const [zoomType, setZoomType] = useState<
     "front" | "back" | "franchise" | "franchise_back" | "discount" | "discount_back" | "selfie" | "passenger_selfie" | null
   >(null);
@@ -1423,11 +1430,37 @@ export default function ViewUserModal({
                   <Field
                     label="Passenger Type"
                     value={
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${typeBadge.className}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${typeBadge.dotClass}`} />
-                          {typeBadge.label}
-                        </span>
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        <div className="relative inline-block">
+                          <select
+                            value={typeBadge.label}
+                            disabled={isUpdatingPassengerType}
+                            onChange={async (e) => {
+                              const val = e.target.value as "Regular" | "Student" | "Senior Citizen" | "PWD";
+                              if (val === typeBadge.label) return;
+                              setIsUpdatingPassengerType(true);
+                              try {
+                                await onUpdatePassengerType?.(passenger.id, passenger.profileId, val);
+                              } finally {
+                                setIsUpdatingPassengerType(false);
+                              }
+                            }}
+                            title="Change passenger type"
+                            className={`appearance-none inline-flex items-center gap-1 pl-2.5 pr-6 py-1 rounded-full text-xs font-bold border cursor-pointer ${typeBadge.className} hover:opacity-90 focus:outline-hidden focus:ring-2 focus:ring-blue-300 transition-all ${
+                              isUpdatingPassengerType ? "opacity-50 cursor-wait" : ""
+                            }`}
+                          >
+                            <option value="Regular" className="text-slate-800 bg-white font-semibold">Regular</option>
+                            <option value="Student" className="text-blue-700 bg-white font-semibold">Student</option>
+                            <option value="Senior Citizen" className="text-purple-700 bg-white font-semibold">Senior Citizen</option>
+                            <option value="PWD" className="text-amber-700 bg-white font-semibold">PWD</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                            <svg className="w-3.5 h-3.5 text-current opacity-70" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
                         {passenger.discountEligible ? (
                           <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                             Discount Active
