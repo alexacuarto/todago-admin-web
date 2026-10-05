@@ -6,7 +6,7 @@ interface BookingsUsageTrendChartProps {
   rideRequests: RideRequest[];
 }
 
-type TimeRange = "7d" | "14d" | "30d" | "all";
+type TimeRange = "7d" | "15d" | "30d" | "all" | "custom";
 type MetricType = "bookings" | "revenue";
 
 interface DailyBucket {
@@ -46,9 +46,26 @@ function generateSmoothPath(points: { x: number; y: number }[]): string {
 }
 
 export default function BookingsUsageTrendChart({ rideRequests }: BookingsUsageTrendChartProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>("14d");
+  const [timeRange, setTimeRange] = useState<TimeRange>("15d");
   const [metric, setMetric] = useState<MetricType>("bookings");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+
+  const handleTimeRangeChange = (range: TimeRange) => {
+    setTimeRange(range);
+    if (range === "custom") {
+      if (!customStartDate || !customEndDate) {
+        const now = new Date();
+        const endStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+        const past = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+        past.setDate(past.getDate() - 14);
+        const startStr = past.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+        setCustomStartDate(startStr);
+        setCustomEndDate(endStr);
+      }
+    }
+  };
 
   // Group real database bookings by date in Philippine Standard Time (Asia/Manila)
   const chartData = useMemo(() => {
@@ -86,26 +103,51 @@ export default function BookingsUsageTrendChart({ rideRequests }: BookingsUsageT
     }
 
     let startDate: Date;
-    const endDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    let endDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     endDate.setHours(23, 59, 59, 999);
 
     if (timeRange === "7d") {
       startDate = new Date(endDate);
       startDate.setDate(endDate.getDate() - 6);
       startDate.setHours(0, 0, 0, 0);
-    } else if (timeRange === "14d") {
+    } else if (timeRange === "15d") {
       startDate = new Date(endDate);
-      startDate.setDate(endDate.getDate() - 13);
+      startDate.setDate(endDate.getDate() - 14);
       startDate.setHours(0, 0, 0, 0);
     } else if (timeRange === "30d") {
       startDate = new Date(endDate);
       startDate.setDate(endDate.getDate() - 29);
       startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === "custom") {
+      if (customStartDate && customEndDate) {
+        const s = new Date(customStartDate + "T00:00:00+08:00");
+        const e = new Date(customEndDate + "T23:59:59.999+08:00");
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+          if (s <= e) {
+            startDate = s;
+            endDate = e;
+          } else {
+            // If user selected inverted range, swap them
+            startDate = e;
+            startDate.setHours(0, 0, 0, 0);
+            endDate = s;
+            endDate.setHours(23, 59, 59, 999);
+          }
+        } else {
+          startDate = new Date(endDate);
+          startDate.setDate(endDate.getDate() - 14);
+          startDate.setHours(0, 0, 0, 0);
+        }
+      } else {
+        startDate = new Date(endDate);
+        startDate.setDate(endDate.getDate() - 14);
+        startDate.setHours(0, 0, 0, 0);
+      }
     } else {
       // "all" - start from earliest real booking date or 14 days ago
       const earliestStr = allKeys[0];
       const earliestParsed = new Date(earliestStr + "T00:00:00+08:00");
-      startDate = isNaN(earliestParsed.getTime()) ? new Date(endDate.getTime() - 13 * 86400000) : earliestParsed;
+      startDate = isNaN(earliestParsed.getTime()) ? new Date(endDate.getTime() - 14 * 86400000) : earliestParsed;
       startDate.setHours(0, 0, 0, 0);
     }
 
@@ -153,7 +195,7 @@ export default function BookingsUsageTrendChart({ rideRequests }: BookingsUsageT
     }
 
     return buckets;
-  }, [rideRequests, timeRange]);
+  }, [rideRequests, timeRange, customStartDate, customEndDate]);
 
   // Aggregate stats across the visible period
   const stats = useMemo(() => {
@@ -301,23 +343,32 @@ export default function BookingsUsageTrendChart({ rideRequests }: BookingsUsageT
 
           {/* Time Range Selector */}
           <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200/60">
-            {(["7d", "14d", "30d", "all"] as TimeRange[]).map((range) => {
+            {(["7d", "15d", "30d", "all", "custom"] as TimeRange[]).map((range) => {
               const labels: Record<TimeRange, string> = {
                 "7d": "7D",
-                "14d": "14D",
+                "15d": "15D",
                 "30d": "30D",
                 all: "All",
+                custom: "Custom",
               };
               return (
                 <button
                   key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  onClick={() => handleTimeRangeChange(range)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     timeRange === range
                       ? "bg-[#000C7D] text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
+                  {range === "custom" && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  )}
                   {labels[range]}
                 </button>
               );
@@ -325,6 +376,53 @@ export default function BookingsUsageTrendChart({ rideRequests }: BookingsUsageT
           </div>
         </div>
       </div>
+
+      {/* Dynamic Custom Date Range Toolbar (visible when Custom is selected) */}
+      {timeRange === "custom" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-blue-50/70 rounded-xl border border-blue-100 transition-all">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#000C7D]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-[#000C7D]">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span>Custom Date Filter:</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400">Start:</span>
+              <input
+                type="date"
+                value={customStartDate}
+                max={customEndDate || undefined}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                className="font-bold text-slate-700 bg-transparent outline-none cursor-pointer text-xs"
+              />
+            </div>
+            <span className="text-slate-400 font-bold">to</span>
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400">End:</span>
+              <input
+                type="date"
+                value={customEndDate}
+                min={customStartDate || undefined}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                className="font-bold text-slate-700 bg-transparent outline-none cursor-pointer text-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 pl-1">
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({chartData.length} {chartData.length === 1 ? "day" : "days"} displayed)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Stat Cards Summary Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
