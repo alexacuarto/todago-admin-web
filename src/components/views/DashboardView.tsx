@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Driver, RideRequest } from "../../types";
 import { normalizeToda, OfficialToda } from "../../lib/todaConstants";
+import BookingsUsageTrendChart from "./BookingsUsageTrendChart";
 
 interface DashboardViewProps {
   rideRequests: RideRequest[];
@@ -240,6 +241,9 @@ export default function DashboardView({
           <span className="text-2xl sm:text-3xl font-extrabold text-[#000C7D] mt-0.5">{money(totalEarnings)}</span>
         </div>
       </div>
+
+      {/* Daily Bookings Usage & Trend Graph (Option A) */}
+      <BookingsUsageTrendChart rideRequests={rideRequests} />
 
       {/* Main Grid: Left Ride Requests, Right Driver Management & TODA Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
