@@ -149,8 +149,7 @@ export default function ViewUserModal({
   onResetCanceledTrips,
   onLiftPassengerRestriction,
   onRestrictPassenger,
-  onDeleteDriver,
-  onDeletePassenger,
+  // onDeleteDriver,
   onRefreshData,
   rideRequests = [],
   driverChangeRequests = [],
@@ -189,7 +188,7 @@ export default function ViewUserModal({
   const [passengerSelfiePreviewUrl, setPassengerSelfiePreviewUrl] = useState<string | null>(null);
   const [selectedToda, setSelectedToda] = useState("");
   const [isUpdatingToda, setIsUpdatingToda] = useState(false);
-  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  // const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isTogglingDocStatus, setIsTogglingDocStatus] = useState(false);
   const [manualDocStatusOverride, setManualDocStatusOverride] = useState<string | null>(null);
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
@@ -1287,7 +1286,7 @@ export default function ViewUserModal({
                       Restrict Driver
                     </button>
                   )}
-                  <button
+                  {/* <button
                     type="button"
                     disabled={isDeletingUser}
                     onClick={() => {
@@ -1316,7 +1315,7 @@ export default function ViewUserModal({
                     className="px-4 py-2 bg-rose-600 text-white border border-rose-600 rounded-xl text-xs font-bold hover:bg-rose-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isDeletingUser ? "Deleting Driver..." : "Remove Driver"}
-                  </button>
+                  </button> */}
                 </div>
                 {activeDriverAction && (
                   <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
@@ -1446,9 +1445,8 @@ export default function ViewUserModal({
                               }
                             }}
                             title="Change passenger type"
-                            className={`appearance-none inline-flex items-center gap-1 pl-2.5 pr-6 py-1 rounded-full text-xs font-bold border cursor-pointer ${typeBadge.className} hover:opacity-90 focus:outline-hidden focus:ring-2 focus:ring-blue-300 transition-all ${
-                              isUpdatingPassengerType ? "opacity-50 cursor-wait" : ""
-                            }`}
+                            className={`appearance-none inline-flex items-center gap-1 pl-2.5 pr-6 py-1 rounded-full text-xs font-bold border cursor-pointer ${typeBadge.className} hover:opacity-90 focus:outline-hidden focus:ring-2 focus:ring-blue-300 transition-all ${isUpdatingPassengerType ? "opacity-50 cursor-wait" : ""
+                              }`}
                           >
                             <option value="Regular" className="text-slate-800 bg-white font-semibold">Regular</option>
                             <option value="Student" className="text-blue-700 bg-white font-semibold">Student</option>
@@ -1794,7 +1792,7 @@ export default function ViewUserModal({
                       </button>
                     )}
 
-                    <button
+                    {/* <button
                       type="button"
                       disabled={isDeletingUser}
                       onClick={() => {
@@ -1823,7 +1821,7 @@ export default function ViewUserModal({
                       className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isDeletingUser ? "Deleting Passenger..." : "Delete Passenger"}
-                    </button>
+                    </button> */}
                   </div>
 
                   {activePassengerAction && (
