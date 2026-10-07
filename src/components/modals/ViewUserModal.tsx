@@ -150,7 +150,6 @@ export default function ViewUserModal({
   onLiftPassengerRestriction,
   onRestrictPassenger,
   onDeleteDriver,
-  onDeletePassenger,
   onRefreshData,
   rideRequests = [],
   driverChangeRequests = [],
