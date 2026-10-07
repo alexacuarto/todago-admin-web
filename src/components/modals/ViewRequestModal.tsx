@@ -15,7 +15,7 @@ export default function ViewRequestModal({
   isOpen,
   onClose,
   viewingRequest,
-  onDeleteRequest,
+  // onDeleteRequest,
 }: ViewRequestModalProps) {
   const [discountRates, setDiscountRates] = useState<{
     student: number;
@@ -552,13 +552,13 @@ export default function ViewRequestModal({
 
           <div className="border-t border-slate-100 pt-5 mt-2 flex items-center justify-end gap-3">
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
-            <button
+            {/* <button
               type="button"
               onClick={() => onDeleteRequest(viewingRequest.id)}
               className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm hover:shadow"
             >
               Delete Ride Request
-            </button>
+            </button> */}
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
             <button
               onClick={onClose}
