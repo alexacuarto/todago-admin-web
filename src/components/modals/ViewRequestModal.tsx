@@ -8,14 +8,14 @@ interface ViewRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   viewingRequest: RideRequest | null;
-  onDeleteRequest: (id: string) => void;
+  onDeleteRequest?: (id: string) => void;
 }
 
 export default function ViewRequestModal({
   isOpen,
   onClose,
   viewingRequest,
-  // onDeleteRequest,
+  onDeleteRequest,
 }: ViewRequestModalProps) {
   const [discountRates, setDiscountRates] = useState<{
     student: number;
@@ -32,7 +32,7 @@ export default function ViewRequestModal({
           pwd: Number(parsed.pwdDiscount) || 20,
         };
       }
-    } catch (_) {}
+    } catch (_) { }
     return { student: 20, seniorCitizen: 20, pwd: 20 };
   });
 
@@ -197,18 +197,18 @@ export default function ViewRequestModal({
                       <div
                         key={idx}
                         className={`flex items-start gap-3 text-xs p-3 rounded-xl border transition-all ${isCompleted
-                            ? "bg-emerald-50/70 border-emerald-100"
-                            : isCurrent
-                              ? "bg-sky-50 border-sky-200 ring-1 ring-sky-300"
-                              : "bg-white border-slate-100"
+                          ? "bg-emerald-50/70 border-emerald-100"
+                          : isCurrent
+                            ? "bg-sky-50 border-sky-200 ring-1 ring-sky-300"
+                            : "bg-white border-slate-100"
                           }`}
                       >
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center font-extrabold shrink-0 mt-0.5 text-xs ${isCompleted
-                              ? "bg-emerald-600 text-white"
-                              : isCurrent
-                                ? "bg-sky-600 text-white animate-pulse"
-                                : "bg-slate-200 text-slate-700"
+                            ? "bg-emerald-600 text-white"
+                            : isCurrent
+                              ? "bg-sky-600 text-white animate-pulse"
+                              : "bg-slate-200 text-slate-700"
                             }`}
                         >
                           {isCompleted ? "✓" : (stop.stop_number || idx + 1)}
@@ -220,10 +220,10 @@ export default function ViewRequestModal({
                             </p>
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${isCompleted
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : isCurrent
-                                    ? "bg-sky-100 text-sky-800"
-                                    : "bg-slate-100 text-slate-600"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : isCurrent
+                                  ? "bg-sky-100 text-sky-800"
+                                  : "bg-slate-100 text-slate-600"
                                 }`}
                             >
                               {isCompleted ? "Arrived" : isCurrent ? "En Route" : "Pending"}
@@ -270,12 +270,12 @@ export default function ViewRequestModal({
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Discount Review</p>
                 <div className="mt-0.5">
                   <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${viewingRequest.discountReviewStatus === "APPROVED"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : viewingRequest.discountReviewStatus === "REJECTED"
-                        ? "bg-rose-100 text-rose-800"
-                        : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-slate-100 text-slate-700"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : viewingRequest.discountReviewStatus === "REJECTED"
+                      ? "bg-rose-100 text-rose-800"
+                      : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-100 text-slate-700"
                     }`}>
                     {viewingRequest.discountReviewStatus === "REJECTED"
                       ? "Disapproved (Reverted)"
@@ -287,9 +287,8 @@ export default function ViewRequestModal({
             <div className="col-span-2 rounded-2xl p-4 border transition-all flex flex-col gap-3 bg-gradient-to-r from-slate-50 to-indigo-50/40 border-slate-200/80">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold shrink-0 ${
-                    isSolo ? "bg-slate-200 text-slate-700" : "bg-[#000C7D] text-white shadow-xs"
-                  }`}>
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold shrink-0 ${isSolo ? "bg-slate-200 text-slate-700" : "bg-[#000C7D] text-white shadow-xs"
+                    }`}>
                     {isSolo ? "👤" : "👥"}
                   </div>
                   <div>
@@ -297,17 +296,16 @@ export default function ViewRequestModal({
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                         Passenger Headcount
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        isSolo 
-                          ? "bg-slate-200/80 text-slate-700" 
-                          : "bg-indigo-100 text-indigo-800"
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${isSolo
+                        ? "bg-slate-200/80 text-slate-700"
+                        : "bg-indigo-100 text-indigo-800"
+                        }`}>
                         {isSolo ? "Solo Ride" : "Group Ride"}
                       </span>
                     </div>
                     <p className="font-extrabold text-slate-800 text-base mt-0.5">
-                      {isSolo 
-                        ? "Solo Passenger (1 Rider)" 
+                      {isSolo
+                        ? "Solo Passenger (1 Rider)"
                         : `${totalPassengers} Total Passengers (1 Primary + ${companionCount} ${companionCount === 1 ? "Companion" : "Companions"})`}
                     </p>
                   </div>
@@ -316,38 +314,34 @@ export default function ViewRequestModal({
 
               {/* Passenger Type Breakdown Matrix */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60">
-                <div className={`p-2 rounded-xl border text-center ${
-                  regularCount > 0 
-                    ? "bg-white border-slate-200 shadow-2xs" 
-                    : "bg-slate-100/40 border-transparent opacity-50"
-                }`}>
+                <div className={`p-2 rounded-xl border text-center ${regularCount > 0
+                  ? "bg-white border-slate-200 shadow-2xs"
+                  : "bg-slate-100/40 border-transparent opacity-50"
+                  }`}>
                   <p className="text-[11px] font-semibold text-slate-500">Regular</p>
                   <p className="text-base font-extrabold text-slate-800 mt-0.5">{regularCount}</p>
                   <span className="text-[10px] text-slate-400 font-medium">Standard Fare</span>
                 </div>
-                <div className={`p-2 rounded-xl border text-center ${
-                  studentCount > 0 
-                    ? "bg-sky-50 border-sky-200 shadow-2xs" 
-                    : "bg-slate-100/40 border-transparent opacity-50"
-                }`}>
+                <div className={`p-2 rounded-xl border text-center ${studentCount > 0
+                  ? "bg-sky-50 border-sky-200 shadow-2xs"
+                  : "bg-slate-100/40 border-transparent opacity-50"
+                  }`}>
                   <p className="text-[11px] font-semibold text-sky-800">Student</p>
                   <p className="text-base font-extrabold text-sky-900 mt-0.5">{studentCount}</p>
                   <span className="text-[10px] text-sky-600 font-bold">{discountRates.student}% Off</span>
                 </div>
-                <div className={`p-2 rounded-xl border text-center ${
-                  seniorCount > 0 
-                    ? "bg-amber-50 border-amber-200 shadow-2xs" 
-                    : "bg-slate-100/40 border-transparent opacity-50"
-                }`}>
+                <div className={`p-2 rounded-xl border text-center ${seniorCount > 0
+                  ? "bg-amber-50 border-amber-200 shadow-2xs"
+                  : "bg-slate-100/40 border-transparent opacity-50"
+                  }`}>
                   <p className="text-[11px] font-semibold text-amber-800">Senior</p>
                   <p className="text-base font-extrabold text-amber-900 mt-0.5">{seniorCount}</p>
                   <span className="text-[10px] text-amber-600 font-bold">{discountRates.seniorCitizen}% Off</span>
                 </div>
-                <div className={`p-2 rounded-xl border text-center ${
-                  pwdCount > 0 
-                    ? "bg-purple-50 border-purple-200 shadow-2xs" 
-                    : "bg-slate-100/40 border-transparent opacity-50"
-                }`}>
+                <div className={`p-2 rounded-xl border text-center ${pwdCount > 0
+                  ? "bg-purple-50 border-purple-200 shadow-2xs"
+                  : "bg-slate-100/40 border-transparent opacity-50"
+                  }`}>
                   <p className="text-[11px] font-semibold text-purple-800">PWD</p>
                   <p className="text-base font-extrabold text-purple-900 mt-0.5">{pwdCount}</p>
                   <span className="text-[10px] text-purple-600 font-bold">{discountRates.pwd}% Off</span>
@@ -385,15 +379,14 @@ export default function ViewRequestModal({
                 {viewingRequest.discountReviewStatus && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span>Discount Verification Status:</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                      viewingRequest.discountReviewStatus === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : viewingRequest.discountReviewStatus === "REJECTED"
-                          ? "bg-rose-100 text-rose-800"
-                          : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-slate-200 text-slate-700"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${viewingRequest.discountReviewStatus === "APPROVED"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : viewingRequest.discountReviewStatus === "REJECTED"
+                        ? "bg-rose-100 text-rose-800"
+                        : viewingRequest.discountReviewStatus === "PARTIALLY_APPROVED"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-200 text-slate-700"
+                      }`}>
                       {viewingRequest.discountReviewStatus === "REJECTED"
                         ? "Disapproved (Reverted to Regular)"
                         : viewingRequest.discountReviewStatus.replace(/_/g, " ")}
@@ -445,14 +438,14 @@ export default function ViewRequestModal({
               <div className="mt-1">
                 <span
                   className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${viewingRequest.status === "Completed"
-                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      : viewingRequest.status === "In Transit"
-                        ? "bg-emerald-500 text-white border border-emerald-600"
-                        : viewingRequest.status === "Pending" || viewingRequest.status === "Awaiting Payment" || viewingRequest.status === "Payment Confirmation"
-                          ? "bg-amber-50 text-amber-600 border border-amber-100"
-                          : viewingRequest.status === "Scheduled"
-                            ? "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                            : "bg-rose-50 text-rose-600 border border-rose-100"
+                    ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                    : viewingRequest.status === "In Transit"
+                      ? "bg-emerald-500 text-white border border-emerald-600"
+                      : viewingRequest.status === "Pending" || viewingRequest.status === "Awaiting Payment" || viewingRequest.status === "Payment Confirmation"
+                        ? "bg-amber-50 text-amber-600 border border-amber-100"
+                        : viewingRequest.status === "Scheduled"
+                          ? "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                          : "bg-rose-50 text-rose-600 border border-rose-100"
                     }`}
                 >
                   {viewingRequest.status}
@@ -532,15 +525,14 @@ export default function ViewRequestModal({
                       )}
                     </div>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
-                        companion.status === "APPROVED"
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                          : companion.status === "REJECTED"
-                            ? "bg-rose-50 text-rose-600 border border-rose-100"
-                            : companion.status === "STANDARD"
-                              ? "bg-slate-100 text-slate-600 border border-slate-200"
-                              : "bg-amber-100 text-amber-700 border border-amber-200"
-                      }`}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${companion.status === "APPROVED"
+                        ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        : companion.status === "REJECTED"
+                          ? "bg-rose-50 text-rose-600 border border-rose-100"
+                          : companion.status === "STANDARD"
+                            ? "bg-slate-100 text-slate-600 border border-slate-200"
+                            : "bg-amber-100 text-amber-700 border border-amber-200"
+                        }`}
                     >
                       {companion.status === "STANDARD" ? "Standard Fare" : companion.status}
                     </span>
@@ -552,13 +544,15 @@ export default function ViewRequestModal({
 
           <div className="border-t border-slate-100 pt-5 mt-2 flex items-center justify-end gap-3">
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
-            {/* <button
-              type="button"
-              onClick={() => onDeleteRequest(viewingRequest.id)}
-              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm hover:shadow"
-            >
-              Delete Ride Request
-            </button> */}
+            {onDeleteRequest && (
+              <button
+                type="button"
+                onClick={() => onDeleteRequest(viewingRequest.id)}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm hover:shadow"
+              >
+                Delete Ride Request
+              </button>
+            )}
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
             <button
               onClick={onClose}
