@@ -15,7 +15,7 @@ export default function ViewRequestModal({
   isOpen,
   onClose,
   viewingRequest,
-  onDeleteRequest,
+  // onDeleteRequest,
 }: ViewRequestModalProps) {
   const [discountRates, setDiscountRates] = useState<{
     student: number;
