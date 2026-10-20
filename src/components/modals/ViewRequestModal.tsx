@@ -544,7 +544,7 @@ export default function ViewRequestModal({
 
           <div className="border-t border-slate-100 pt-5 mt-2 flex items-center justify-end gap-3">
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
-            {onDeleteRequest && (
+            {/* {onDeleteRequest && (
               <button
                 type="button"
                 onClick={() => onDeleteRequest(viewingRequest.id)}
@@ -552,7 +552,7 @@ export default function ViewRequestModal({
               >
                 Delete Ride Request
               </button>
-            )}
+            )} */}
             {/* COMMENT THIS TO HIDE DELETE BUTTON */}
             <button
               onClick={onClose}
